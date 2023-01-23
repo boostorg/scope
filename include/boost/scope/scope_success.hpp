@@ -19,7 +19,7 @@
 #include <boost/core/uncaught_exceptions.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
 #include <boost/scope/detail/compact_storage.hpp>
-#include <boost/scope/detail/move_or_copy_ref.hpp>
+#include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
@@ -79,23 +79,23 @@ public:
     template<
         typename F,
         typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< data, typename detail::move_or_copy_ref< F, Func >::type, unsigned int, bool >,
+            std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, unsigned int, bool >,
             detail::is_not_like< F, scope_success >
         >::value >::type
     >
     explicit scope_success(F&& func, bool active = true)
-        noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_ref< F, Func >::type, unsigned int, bool >::value) :
-        m_data(static_cast< typename detail::move_or_copy_ref< F, Func >::type >(func), boost::core::uncaught_exceptions(), active)
+        noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, unsigned int, bool >::value) :
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func), boost::core::uncaught_exceptions(), active)
     {
     }
 
     //! Move-constructs a scope guard, deactivates the original scope guard.
     template<
-        bool Requires = std::is_constructible< data, typename detail::move_or_copy_ref< Func >::type, unsigned int, bool >::value,
+        bool Requires = std::is_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, unsigned int, bool >::value,
         typename = typename std::enable_if< Requires >::type
     >
-    scope_success(scope_success&& that) noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_ref< Func >::type, unsigned int, bool >::value) :
-        m_data(static_cast< typename detail::move_or_copy_ref< Func >::type >(that.m_data.func_base::get()), that.m_data.m_uncaught_count, that.m_data.m_active)
+    scope_success(scope_success&& that) noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, unsigned int, bool >::value) :
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.func_base::get()), that.m_data.m_uncaught_count, that.m_data.m_active)
     {
         that.m_data.m_active = false;
     }

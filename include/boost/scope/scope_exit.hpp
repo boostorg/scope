@@ -18,7 +18,7 @@
 #include <boost/config.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
 #include <boost/scope/detail/compact_storage.hpp>
-#include <boost/scope/detail/move_or_copy_ref.hpp>
+#include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
@@ -75,13 +75,13 @@ public:
     template<
         typename F,
         typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< data, typename detail::move_or_copy_ref< F, Func >::type, bool >,
+            std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, bool >,
             detail::is_not_like< F, scope_exit >
         >::value >::type
     >
     explicit scope_exit(F&& func, bool active = true)
-        noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_ref< F, Func >::type, bool >::value) try :
-        m_data(static_cast< typename detail::move_or_copy_ref< F, Func >::type >(func), active)
+        noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, bool >::value) try :
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func), active)
     {
     }
     catch (...)
@@ -92,11 +92,11 @@ public:
 
     //! Move-constructs a scope guard, deactivates the original scope guard.
     template<
-        bool Requires = std::is_constructible< data, typename detail::move_or_copy_ref< Func >::type, bool >::value,
+        bool Requires = std::is_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, bool >::value,
         typename = typename std::enable_if< Requires >::type
     >
-    scope_exit(scope_exit&& that) noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_ref< Func >::type, bool >::value) :
-        m_data(static_cast< typename detail::move_or_copy_ref< Func >::type >(that.m_data.func_base::get()), that.m_data.m_active)
+    scope_exit(scope_exit&& that) noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, bool >::value) :
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.func_base::get()), that.m_data.m_active)
     {
         that.m_data.m_active = false;
     }

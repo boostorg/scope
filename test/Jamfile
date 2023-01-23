@@ -33,6 +33,7 @@ project
             cxx11_hdr_type_traits
 
             # Requirements of Boost.Scope tests
+            cxx11_nullptr
             cxx11_lambdas
             cxx11_auto_declarations
             cxx11_unified_initialization_syntax

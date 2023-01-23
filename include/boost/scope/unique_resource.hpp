@@ -14,13 +14,14 @@
 #ifndef BOOST_SCOPE_UNIQUE_RESOURCE_HPP_INCLUDED_
 #define BOOST_SCOPE_UNIQUE_RESOURCE_HPP_INCLUDED_
 
-#include <utility> // std::swap
 #include <type_traits>
 #include <boost/config.hpp>
+#include <boost/core/swap.hpp>
 #include <boost/core/addressof.hpp>
 #include <boost/scope/unique_resource_fwd.hpp>
 #include <boost/scope/detail/compact_storage.hpp>
-#include <boost/scope/detail/move_or_copy_ref.hpp>
+#include <boost/scope/detail/move_or_copy_assign_ref.hpp>
+#include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/void_t.hpp>
 #include <boost/scope/detail/type_traits/is_swappable.hpp>
 #include <boost/scope/detail/type_traits/is_nothrow_swappable.hpp>
@@ -65,18 +66,24 @@ public:
     {
         return *m_value;
     }
+
+    template< typename... Args >
+    void operator() (Args&&... args) const noexcept(noexcept(std::declval< T& >()(std::declval< Args&& >()...)))
+    {
+        (*m_value)(static_cast< Args&& >(args)...);
+    }
 };
 
-template< typename Resource >
-struct make_internal_resource_type
+template< typename T >
+struct wrap_reference
 {
-    typedef Resource type;
+    typedef T type;
 };
 
-template< typename Resource >
-struct make_internal_resource_type< Resource& >
+template< typename T >
+struct wrap_reference< T& >
 {
-    typedef ref_wrapper< Resource > type;
+    typedef ref_wrapper< T > type;
 };
 
 template< typename Resource, typename Traits, typename = void >
@@ -97,11 +104,12 @@ struct has_deallocated_state< Resource, Traits, detail::void_t< decltype(!!Trait
 
 template< typename Resource, typename Traits, bool = has_custom_default< Resource, Traits >::value >
 struct resource_holder :
-    public detail::compact_storage< typename make_internal_resource_type< Resource >::type >
+    public detail::compact_storage< typename wrap_reference< Resource >::type >
 {
     typedef Resource resource_type;
+    typedef typename wrap_reference< Resource >::type internal_resource_type;
     typedef Traits traits_type;
-    typedef detail::compact_storage< typename make_internal_resource_type< Resource >::type > resource_base;
+    typedef detail::compact_storage< internal_resource_type > resource_base;
 
     template<
         bool Requires = std::is_default_constructible< resource_type >::value,
@@ -147,15 +155,26 @@ struct resource_holder :
     {
         return resource_base::get();
     }
+
+    internal_resource_type& get_internal() noexcept
+    {
+        return resource_base::get();
+    }
+
+    internal_resource_type const& get_internal() const noexcept
+    {
+        return resource_base::get();
+    }
 };
 
 template< typename Resource, typename Traits >
 struct resource_holder< Resource, Traits, true > :
-    public detail::compact_storage< typename make_internal_resource_type< Resource >::type >
+    public detail::compact_storage< typename wrap_reference< Resource >::type >
 {
     typedef Resource resource_type;
+    typedef typename wrap_reference< Resource >::type internal_resource_type;
     typedef Traits traits_type;
-    typedef detail::compact_storage< typename make_internal_resource_type< Resource >::type > resource_base;
+    typedef detail::compact_storage< internal_resource_type > resource_base;
 
     constexpr resource_holder()
         noexcept(detail::conjunction<
@@ -201,16 +220,27 @@ struct resource_holder< Resource, Traits, true > :
     {
         return resource_base::get();
     }
+
+    internal_resource_type& get_internal() noexcept
+    {
+        return resource_base::get();
+    }
+
+    internal_resource_type const& get_internal() const noexcept
+    {
+        return resource_base::get();
+    }
 };
 
 template< typename Resource, typename Deleter >
 struct deleter_holder :
-    public detail::compact_storage< Deleter >
+    public detail::compact_storage< typename wrap_reference< Deleter >::type >
 {
 public:
     typedef Resource resource_type;
     typedef Deleter deleter_type;
-    typedef detail::compact_storage< deleter_type > deleter_base;
+    typedef typename wrap_reference< deleter_type >::type internal_deleter_type;
+    typedef detail::compact_storage< internal_deleter_type > deleter_base;
 
     template<
         bool Requires = std::is_default_constructible< deleter_type >::value,
@@ -234,6 +264,26 @@ public:
     {
         if (BOOST_LIKELY(allocated))
             del(res);
+    }
+
+    deleter_type& get() noexcept
+    {
+        return deleter_base::get();
+    }
+
+    deleter_type const& get() const noexcept
+    {
+        return deleter_base::get();
+    }
+
+    internal_deleter_type& get_internal() noexcept
+    {
+        return deleter_base::get();
+    }
+
+    internal_deleter_type const& get_internal() const noexcept
+    {
+        return deleter_base::get();
     }
 };
 
@@ -259,7 +309,9 @@ public:
     typedef Deleter deleter_type;
     typedef Traits traits_type;
     typedef detail::resource_holder< resource_type, traits_type > resource_holder;
+    typedef typename resource_holder::internal_resource_type internal_resource_type;
     typedef detail::deleter_holder< resource_type, deleter_type > deleter_holder;
+    typedef typename deleter_holder::internal_deleter_type internal_deleter_type;
 
 private:
     bool m_allocated;
@@ -282,26 +334,26 @@ public:
 
     template<
         bool Requires = detail::conjunction<
-            std::is_constructible< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_constructible< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
+            std::is_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >,
+            std::is_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >
         >::value,
         typename = typename std::enable_if< Requires >::type
     >
     unique_resource_data(unique_resource_data&& that)
         noexcept(detail::conjunction<
-            std::is_nothrow_constructible< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_nothrow_constructible< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
+            std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >,
+            std::is_nothrow_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >
         >::value) try :
-        resource_holder(static_cast< typename detail::move_or_copy_ref< resource_type, resource_type >::type >(that.get_resource())),
-        deleter_holder(static_cast< typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >(that.get_deleter()), resource_holder::get(),
-            !std::is_nothrow_move_constructible< resource_type >::value && that.m_allocated), // don't deallocate if the resource was copied
+        resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
+        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()), resource_holder::get(),
+            !std::is_nothrow_move_constructible< internal_resource_type >::value && that.m_allocated), // don't deallocate if the resource was copied
         m_allocated(that.m_allocated)
     {
         that.m_allocated = false;
     }
     catch (...)
     {
-        BOOST_IF_CONSTEXPR (std::is_nothrow_move_constructible< resource_type >::value)
+        BOOST_IF_CONSTEXPR (std::is_nothrow_move_constructible< internal_resource_type >::value)
         {
             // The resource was moved to this object, and the deleter constructor failed with an exception.
             // The deleter holder has invoked the deleter already, so the move source is no longer valid.
@@ -330,17 +382,17 @@ public:
 
     template<
         bool Requires = detail::conjunction<
-            std::is_assignable< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_assignable< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
+            std::is_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >,
+            std::is_assignable< internal_deleter_type&, typename detail::move_or_copy_assign_ref< deleter_type >::type >
         >::value
     >
     typename std::enable_if< Requires, unique_resource_data& >::type operator= (unique_resource_data&& that)
         noexcept(detail::conjunction<
-            std::is_nothrow_assignable< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_nothrow_assignable< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
+            std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >,
+            std::is_nothrow_assignable< internal_deleter_type&, typename detail::move_or_copy_assign_ref< deleter_type >::type >
         >::value)
     {
-        assign(static_cast< unique_resource_data&& >(that), typename std::is_nothrow_move_assignable< deleter_type >::type());
+        assign(static_cast< unique_resource_data&& >(that), typename std::is_nothrow_move_assignable< internal_deleter_type >::type());
         return *this;
     }
 
@@ -354,6 +406,16 @@ public:
         return resource_holder::get();
     }
 
+    internal_resource_type& get_internal_resource() noexcept
+    {
+        return resource_holder::get_internal();
+    }
+
+    internal_resource_type const& get_internal_resource() const noexcept
+    {
+        return resource_holder::get_internal();
+    }
+
     deleter_type& get_deleter() noexcept
     {
         return deleter_holder::get();
@@ -362,6 +424,16 @@ public:
     deleter_type const& get_deleter() const noexcept
     {
         return deleter_holder::get();
+    }
+
+    internal_deleter_type& get_internal_deleter() noexcept
+    {
+        return deleter_holder::get_internal();
+    }
+
+    internal_deleter_type const& get_internal_deleter() const noexcept
+    {
+        return deleter_holder::get_internal();
     }
 
     bool is_allocated() const noexcept
@@ -375,82 +447,68 @@ public:
     }
 
     template< typename R >
-    void assign_resource(R&& res) noexcept(std::is_nothrow_assignable< resource_type, R >::value)
+    void assign_resource(R&& res) noexcept(std::is_nothrow_assignable< internal_resource_type, R >::value)
     {
-        get_resource() = static_cast< R&& >(res);
+        get_internal_resource() = static_cast< R&& >(res);
         m_allocated = true;
     }
 
-    template< bool Requires = detail::conjunction< detail::is_swappable< resource_type >, detail::is_swappable< deleter_type > >::value >
+    template< bool Requires = detail::conjunction< detail::is_swappable< internal_resource_type >, detail::is_swappable< internal_deleter_type > >::value >
     typename std::enable_if< Requires >::type swap(unique_resource_data& that)
-        noexcept(detail::conjunction< detail::is_nothrow_swappable< resource_type >, detail::is_nothrow_swappable< deleter_type > >::value)
+        noexcept(detail::conjunction< detail::is_nothrow_swappable< internal_resource_type >, detail::is_nothrow_swappable< internal_deleter_type > >::value)
     {
-        swap_impl(that, std::integral_constant< bool, detail::is_nothrow_swappable< resource_type >::value >());
+        swap_impl(that, std::integral_constant< bool, detail::conjunction<
+            detail::is_nothrow_swappable< internal_resource_type >,
+            detail::is_nothrow_swappable< internal_deleter_type >
+        >::value >());
     }
 
 private:
     void assign(unique_resource_data&& that, std::true_type)
-        noexcept(detail::conjunction<
-            std::is_nothrow_assignable< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_nothrow_assignable< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
-        >::value)
+        noexcept(std::is_nothrow_assignable< internal_resource_type, typename detail::move_or_copy_assign_ref< resource_type >::type >::value)
     {
-        get_resource() = static_cast< typename detail::move_or_copy_ref< resource_type, resource_type >::type >(that.get_resource());
-        get_deleter() = static_cast< typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >(that.get_deleter());
+        get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
+        get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
 
         m_allocated = that.m_allocated;
         that.m_allocated = false;
     }
 
     void assign(unique_resource_data&& that, std::false_type)
-        noexcept(detail::conjunction<
-            std::is_nothrow_assignable< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_nothrow_assignable< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
-        >::value)
     {
-        get_deleter() = static_cast< typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >(that.get_deleter());
-        get_resource() = static_cast< typename detail::move_or_copy_ref< resource_type, resource_type >::type >(that.get_resource());
+        get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
+        get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
 
         m_allocated = that.m_allocated;
         that.m_allocated = false;
     }
 
-    void swap_impl(unique_resource_data& that, std::true_type)
-        noexcept(detail::conjunction< detail::is_nothrow_swappable< resource_type >, detail::is_nothrow_swappable< deleter_type > >::value)
+    void swap_impl(unique_resource_data& that, std::true_type) noexcept
     {
-        using namespace std;
+        boost::swap(get_internal_resource(), that.get_internal_resource());
+        boost::swap(get_internal_deleter(), that.get_internal_deleter());
 
-        swap(get_resource(), that.get_resource());
-        try
-        {
-            swap(get_deleter(), that.get_deleter());
-        }
-        catch (...)
-        {
-            swap(get_resource(), that.get_resource());
-            throw;
-        }
-
-        swap(m_allocated, that.m_allocated);
+        const bool allocated = m_allocated;
+        m_allocated = that.m_allocated;
+        that.m_allocated = allocated;
     }
 
     void swap_impl(unique_resource_data& that, std::false_type)
-        noexcept(detail::conjunction< detail::is_nothrow_swappable< resource_type >, detail::is_nothrow_swappable< deleter_type > >::value)
     {
-        using namespace std;
-
-        swap(get_deleter(), that.get_deleter());
+        boost::swap(get_internal_deleter(), that.get_internal_deleter());
         try
         {
-            swap(get_resource(), that.get_resource());
+            boost::swap(get_internal_resource(), that.get_internal_resource());
         }
         catch (...)
         {
-            swap(get_deleter(), that.get_deleter());
+            boost::swap(get_internal_deleter(), that.get_internal_deleter());
             throw;
         }
 
-        swap(m_allocated, that.m_allocated);
+        const bool allocated = m_allocated;
+        m_allocated = that.m_allocated;
+        that.m_allocated = allocated;
     }
 };
 
@@ -464,7 +522,9 @@ public:
     typedef Deleter deleter_type;
     typedef Traits traits_type;
     typedef detail::resource_holder< resource_type, traits_type > resource_holder;
+    typedef typename resource_holder::internal_resource_type internal_resource_type;
     typedef detail::deleter_holder< resource_type, deleter_type > deleter_holder;
+    typedef typename deleter_holder::internal_deleter_type internal_deleter_type;
 
 public:
     template<
@@ -483,18 +543,18 @@ public:
 
     unique_resource_data(unique_resource_data&& that)
         noexcept(detail::conjunction<
-            std::is_nothrow_constructible< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_nothrow_constructible< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
+            std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >,
+            std::is_nothrow_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >
         >::value) try :
-        resource_holder(static_cast< typename detail::move_or_copy_ref< resource_type, resource_type >::type >(that.get_resource())),
-        deleter_holder(static_cast< typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >(that.get_deleter()), resource_holder::get(),
-            !std::is_nothrow_move_constructible< resource_type >::value && that.is_allocated()) // don't deallocate if the resource was copied
+        resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
+        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()), resource_holder::get(),
+            !std::is_nothrow_move_constructible< internal_resource_type >::value && that.is_allocated()) // don't deallocate if the resource was copied
     {
         that.set_deallocated();
     }
     catch (...)
     {
-        BOOST_IF_CONSTEXPR (std::is_nothrow_move_constructible< resource_type >::value)
+        BOOST_IF_CONSTEXPR (std::is_nothrow_move_constructible< internal_resource_type >::value)
         {
             // The resource was moved to this object, and the deleter constructor failed with an exception.
             // The deleter holder has invoked the deleter already, so the move source is no longer valid.
@@ -522,17 +582,17 @@ public:
 
     template<
         bool Requires = detail::conjunction<
-            std::is_assignable< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_assignable< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
+            std::is_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >,
+            std::is_assignable< internal_deleter_type&, typename detail::move_or_copy_assign_ref< deleter_type >::type >
         >::value
     >
     typename std::enable_if< Requires, unique_resource_data& >::type operator= (unique_resource_data&& that)
         noexcept(detail::conjunction<
-            std::is_nothrow_assignable< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_nothrow_assignable< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
+            std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >,
+            std::is_nothrow_assignable< internal_deleter_type&, typename detail::move_or_copy_assign_ref< deleter_type >::type >
         >::value)
     {
-        assign(static_cast< unique_resource_data&& >(that), typename std::is_nothrow_move_assignable< deleter_type >::type());
+        assign(static_cast< unique_resource_data&& >(that), typename std::is_nothrow_move_assignable< internal_deleter_type >::type());
         return *this;
     }
 
@@ -546,6 +606,16 @@ public:
         return resource_holder::get();
     }
 
+    internal_resource_type& get_internal_resource() noexcept
+    {
+        return resource_holder::get_internal();
+    }
+
+    internal_resource_type const& get_internal_resource() const noexcept
+    {
+        return resource_holder::get_internal();
+    }
+
     deleter_type& get_deleter() noexcept
     {
         return deleter_holder::get();
@@ -556,6 +626,16 @@ public:
         return deleter_holder::get();
     }
 
+    internal_deleter_type& get_internal_deleter() noexcept
+    {
+        return deleter_holder::get_internal();
+    }
+
+    internal_deleter_type const& get_internal_deleter() const noexcept
+    {
+        return deleter_holder::get_internal();
+    }
+
     bool is_allocated() const noexcept
     {
         return traits_type::is_allocated(get_resource());
@@ -563,20 +643,23 @@ public:
 
     void set_deallocated() noexcept
     {
-        get_resource() = traits_type::make_default();
+        get_internal_resource() = traits_type::make_default();
     }
 
     template< typename R >
-    void assign_resource(R&& res) noexcept(std::is_nothrow_assignable< resource_type, R >::value)
+    void assign_resource(R&& res) noexcept(std::is_nothrow_assignable< internal_resource_type, R >::value)
     {
-        get_resource() = static_cast< R&& >(res);
+        get_internal_resource() = static_cast< R&& >(res);
     }
 
-    template< bool Requires = detail::conjunction< detail::is_swappable< resource_type >, detail::is_swappable< deleter_type > >::value >
+    template< bool Requires = detail::conjunction< detail::is_swappable< internal_resource_type >, detail::is_swappable< internal_deleter_type > >::value >
     typename std::enable_if< Requires >::type swap(unique_resource_data& that)
-        noexcept(detail::conjunction< detail::is_nothrow_swappable< resource_type >, detail::is_nothrow_swappable< deleter_type > >::value)
+        noexcept(detail::conjunction< detail::is_nothrow_swappable< internal_resource_type >, detail::is_nothrow_swappable< internal_deleter_type > >::value)
     {
-        swap_impl(that, std::integral_constant< bool, detail::is_nothrow_swappable< resource_type >::value >());
+        swap_impl(that, std::integral_constant< bool, detail::conjunction<
+            detail::is_nothrow_swappable< internal_resource_type >,
+            detail::is_nothrow_swappable< internal_deleter_type >
+        >::value >());
     }
 
 private:
@@ -599,59 +682,38 @@ private:
     }
 
     void assign(unique_resource_data&& that, std::true_type)
-        noexcept(detail::conjunction<
-            std::is_nothrow_assignable< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_nothrow_assignable< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
-        >::value)
+        noexcept(std::is_nothrow_assignable< internal_resource_type, typename detail::move_or_copy_assign_ref< resource_type >::type >::value)
     {
-        get_resource() = static_cast< typename detail::move_or_copy_ref< resource_type, resource_type >::type >(that.get_resource());
-        get_deleter() = static_cast< typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >(that.get_deleter());
+        get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
+        get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
 
         that.set_deallocated();
     }
 
     void assign(unique_resource_data&& that, std::false_type)
-        noexcept(detail::conjunction<
-            std::is_nothrow_assignable< resource_type, typename detail::move_or_copy_ref< resource_type, resource_type >::type >,
-            std::is_nothrow_assignable< deleter_type, typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >
-        >::value)
     {
-        get_deleter() = static_cast< typename detail::move_or_copy_ref< deleter_type, deleter_type >::type >(that.get_deleter());
-        get_resource() = static_cast< typename detail::move_or_copy_ref< resource_type, resource_type >::type >(that.get_resource());
+        get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
+        get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
 
         that.set_deallocated();
     }
 
-    void swap_impl(unique_resource_data& that, std::true_type)
-        noexcept(detail::conjunction< detail::is_nothrow_swappable< resource_type >, detail::is_nothrow_swappable< deleter_type > >::value)
+    void swap_impl(unique_resource_data& that, std::true_type) noexcept
     {
-        using namespace std;
-
-        swap(get_resource(), that.get_resource());
-        try
-        {
-            swap(get_deleter(), that.get_deleter());
-        }
-        catch (...)
-        {
-            swap(get_resource(), that.get_resource());
-            throw;
-        }
+        boost::swap(get_internal_resource(), that.get_internal_resource());
+        boost::swap(get_internal_deleter(), that.get_internal_deleter());
     }
 
     void swap_impl(unique_resource_data& that, std::false_type)
-        noexcept(detail::conjunction< detail::is_nothrow_swappable< resource_type >, detail::is_nothrow_swappable< deleter_type > >::value)
     {
-        using namespace std;
-
-        swap(get_deleter(), that.get_deleter());
+        boost::swap(get_internal_deleter(), that.get_internal_deleter());
         try
         {
-            swap(get_resource(), that.get_resource());
+            boost::swap(get_internal_resource(), that.get_internal_resource());
         }
         catch (...)
         {
-            swap(get_deleter(), that.get_deleter());
+            boost::swap(get_internal_deleter(), that.get_internal_deleter());
             throw;
         }
     }
@@ -702,6 +764,15 @@ struct is_dereferenceable< const volatile void* const volatile&, void > : public
 template< typename T >
 struct is_dereferenceable< T, detail::void_t< decltype(*std::declval< T const& >()) > > : public std::true_type { };
 
+template< typename T, bool = detail::is_dereferenceable< T >::value >
+struct dereference_traits { };
+template< typename T >
+struct dereference_traits< T, true >
+{
+    typedef decltype(*std::declval< T const& >()) result_type;
+    static constexpr bool is_noexcept = noexcept(*std::declval< T const& >());
+};
+
 } // namespace detail
 
 /*!
@@ -720,6 +791,9 @@ public:
 
 private:
     typedef detail::unique_resource_data< resource_type, deleter_type, traits_type > data;
+    typedef typename data::internal_resource_type internal_resource_type;
+    typedef typename data::internal_deleter_type internal_deleter_type;
+
     data m_data;
 
 public:
@@ -737,18 +811,18 @@ public:
         typename R,
         typename D,
         typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< data, typename detail::move_or_copy_ref< R, resource_type >::type, typename detail::move_or_copy_ref< D, deleter_type >::type, bool >,
-            detail::negation< detail::disjunction< std::is_reference< resource_type >, std::is_reference< R > > > // prevent binding lvalue-reference resource to an rvalue
+            std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< D, deleter_type >::type, bool >,
+            detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
         >::value >::type
     >
     unique_resource(R&& res, D&& del)
         noexcept(std::is_nothrow_constructible<
             data,
-            typename detail::move_or_copy_ref< R, resource_type >::type,
-            typename detail::move_or_copy_ref< D, deleter_type >::type,
+            typename detail::move_or_copy_construct_ref< R, resource_type >::type,
+            typename detail::move_or_copy_construct_ref< D, deleter_type >::type,
             bool
         >::value) :
-        m_data(static_cast< typename detail::move_or_copy_ref< R, resource_type >::type >(res), static_cast< typename detail::move_or_copy_ref< D, deleter_type >::type >(del), true)
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< R, resource_type >::type >(res), static_cast< typename detail::move_or_copy_construct_ref< D, deleter_type >::type >(del), true)
     {
     }
 
@@ -816,25 +890,20 @@ public:
     //! If the resource is allocated, calls the deleter function on it and marks the resource as deallocated.
     template< typename R >
     typename std::enable_if< detail::conjunction<
-        std::is_assignable< resource_type, typename detail::move_or_copy_ref< R, resource_type >::type >,
-        detail::negation< detail::disjunction< std::is_reference< resource_type >, std::is_reference< R > > > // prevent binding lvalue-reference resource to an rvalue
+        std::is_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >,
+        detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
     >::value >::type reset(R&& res)
         noexcept(detail::conjunction<
             std::integral_constant< bool, noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())) >,
-            std::is_nothrow_assignable< resource_type, typename detail::move_or_copy_ref< R, resource_type >::type >
+            std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >
         >::value)
     {
         reset();
-
-        try
-        {
-            m_data.assign_resource(static_cast< typename detail::move_or_copy_ref< R, resource_type >::type >(res));
-        }
-        catch (...)
-        {
-            m_data.get_deleter()(static_cast< typename detail::move_or_copy_ref< R, resource_type >::type >(res));
-            throw;
-        }
+        assign_resource
+        (
+            static_cast< typename detail::move_or_copy_assign_ref< R, resource_type >::type >(res),
+            typename std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >::type()
+        );
     }
 
     template< bool Requires = detail::is_dereferenceable< resource_type >::value >
@@ -844,8 +913,8 @@ public:
     }
 
     template< bool Requires = detail::is_dereferenceable< resource_type >::value >
-    typename std::enable_if< Requires, decltype(*std::declval< resource_type const& >()) >::type
-    operator* () const noexcept(noexcept(*std::declval< resource_type const& >()))
+    typename detail::dereference_traits< resource_type, Requires >::result_type
+    operator* () const noexcept(detail::dereference_traits< resource_type, Requires >::is_noexcept)
     {
         return *get();
     }
@@ -871,19 +940,41 @@ private:
         typename R,
         typename D,
         typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< data, typename detail::move_or_copy_ref< R, resource_type >::type, typename detail::move_or_copy_ref< D, deleter_type >::type, bool >,
+            std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< D, deleter_type >::type, bool >,
             detail::negation< detail::disjunction< std::is_reference< resource_type >, std::is_reference< R > > > // prevent binding lvalue-reference resource to an rvalue
         >::value >::type
     >
     unique_resource(R&& res, D&& del, bool allocated)
         noexcept(std::is_nothrow_constructible<
             data,
-            typename detail::move_or_copy_ref< R, resource_type >::type,
-            typename detail::move_or_copy_ref< D, deleter_type >::type,
+            typename detail::move_or_copy_construct_ref< R, resource_type >::type,
+            typename detail::move_or_copy_construct_ref< D, deleter_type >::type,
             bool
         >::value) :
-        m_data(static_cast< typename detail::move_or_copy_ref< R, resource_type >::type >(res), static_cast< typename detail::move_or_copy_ref< D, deleter_type >::type >(del), allocated)
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< R, resource_type >::type >(res), static_cast< typename detail::move_or_copy_construct_ref< D, deleter_type >::type >(del), allocated)
     {
+    }
+
+    //! Assigns new resource to the resource guard
+    template< typename R >
+    void assign_resource(R&& res, std::true_type) noexcept
+    {
+        m_data.assign_resource(static_cast< R&& >(res));
+    }
+
+    //! Assigns new resource to the resource guard
+    template< typename R >
+    void assign_resource(R&& res, std::false_type)
+    {
+        try
+        {
+            m_data.assign_resource(static_cast< R&& >(res));
+        }
+        catch (...)
+        {
+            m_data.get_deleter()(static_cast< R&& >(res));
+            throw;
+        }
     }
 
     template< typename Res, typename Del, typename Inv >

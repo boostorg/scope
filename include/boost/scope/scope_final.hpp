@@ -17,7 +17,7 @@
 #include <type_traits>
 #include <boost/config.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
-#include <boost/scope/detail/move_or_copy_ref.hpp>
+#include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
@@ -51,12 +51,12 @@ public:
     template<
         typename F,
         typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< Func, typename detail::move_or_copy_ref< F, Func >::type >,
+            std::is_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >,
             detail::is_not_like< Func, scope_final >
         >::value >::type
     >
-    scope_final(F&& func) noexcept(std::is_nothrow_constructible< Func, typename detail::move_or_copy_ref< F, Func >::type >::value) try :
-        m_func(static_cast< typename detail::move_or_copy_ref< F, Func >::type >(func))
+    scope_final(F&& func) noexcept(std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::value) try :
+        m_func(static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func))
     {
     }
     catch (...)

@@ -6,13 +6,13 @@
  * Copyright (c) 2022 Andrey Semashev
  */
 /*!
- * \file scope/detail/move_or_copy_ref.hpp
+ * \file scope/detail/move_or_copy_construct_ref.hpp
  *
- * This header contains definition of \c move_or_copy_ref type trait.
+ * This header contains definition of \c move_or_copy_construct_ref type trait.
  */
 
-#ifndef BOOST_SCOPE_DETAIL_MOVE_OR_COPY_REF_HPP_INCLUDED_
-#define BOOST_SCOPE_DETAIL_MOVE_OR_COPY_REF_HPP_INCLUDED_
+#ifndef BOOST_SCOPE_DETAIL_MOVE_OR_COPY_CONSTRUCT_REF_HPP_INCLUDED_
+#define BOOST_SCOPE_DETAIL_MOVE_OR_COPY_CONSTRUCT_REF_HPP_INCLUDED_
 
 #include <type_traits>
 #include <boost/config.hpp>
@@ -27,13 +27,8 @@ namespace detail {
 
 //! The type trait produces an rvalue reference to \a From if \a To has a non-throwing constructor from a \a From rvalue and an lvalue reference otherwise.
 template< typename From, typename To = From >
-struct move_or_copy_ref
+struct move_or_copy_construct_ref
 {
-    struct from_rv
-    {
-        typedef From&& type;
-    };
-
     typedef typename std::conditional<
         std::is_nothrow_constructible< To, From >::value,
         From&&,
@@ -42,7 +37,7 @@ struct move_or_copy_ref
 };
 
 template< typename From, typename To >
-struct move_or_copy_ref< From&, To >
+struct move_or_copy_construct_ref< From&, To >
 {
     typedef From& type;
 };
@@ -51,4 +46,4 @@ struct move_or_copy_ref< From&, To >
 } // namespace scope
 } // namespace boost
 
-#endif // BOOST_SCOPE_DETAIL_MOVE_OR_COPY_REF_HPP_INCLUDED_
+#endif // BOOST_SCOPE_DETAIL_MOVE_OR_COPY_CONSTRUCT_REF_HPP_INCLUDED_
