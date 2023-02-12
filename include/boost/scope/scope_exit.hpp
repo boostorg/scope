@@ -96,7 +96,7 @@ public:
         typename = typename std::enable_if< Requires >::type
     >
     scope_exit(scope_exit&& that) noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, bool >::value) :
-        m_data(static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.func_base::get()), that.m_data.m_active)
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.get()), that.m_data.m_active)
     {
         that.m_data.m_active = false;
     }
@@ -110,7 +110,7 @@ public:
     ~scope_exit() noexcept(noexcept(std::declval< Func& >()()))
     {
         if (BOOST_LIKELY(m_data.m_active))
-            m_data.func_base::get()();
+            m_data.get()();
     }
 
     //! Returns \c true if the scope guard is active, otherwise \c false.

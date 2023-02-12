@@ -95,7 +95,7 @@ public:
         typename = typename std::enable_if< Requires >::type
     >
     scope_success(scope_success&& that) noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, unsigned int, bool >::value) :
-        m_data(static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.func_base::get()), that.m_data.m_uncaught_count, that.m_data.m_active)
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.get()), that.m_data.m_uncaught_count, that.m_data.m_active)
     {
         that.m_data.m_active = false;
     }
@@ -109,7 +109,7 @@ public:
     ~scope_success() noexcept(noexcept(std::declval< Func& >()()))
     {
         if (BOOST_LIKELY(m_data.m_active && boost::core::uncaught_exceptions() <= m_data.m_uncaught_count))
-            m_data.func_base::get()();
+            m_data.get()();
     }
 
     //! Returns \c true if the scope guard is active, otherwise \c false.
