@@ -532,6 +532,7 @@ jobs:
         shell: cmd
         run: |
             cd ../boost-root
+            if "${{matrix.extra_tests}}" == "" set BOOST_SCOPE_TEST_WITHOUT_SELF_CONTAINED_HEADER_TESTS=1
             if not "${{matrix.cxxstd}}" == "" set CXXSTD=cxxstd=${{matrix.cxxstd}}
             if not "${{matrix.addrmd}}" == "" set ADDRMD=address-model=${{matrix.addrmd}}
             if not "${{matrix.build_variant}}" == "" (set BUILD_VARIANT=variant=${{matrix.build_variant}}) else (set BUILD_VARIANT=variant=%DEFAULT_BUILD_VARIANT%)
