@@ -1020,7 +1020,7 @@ unique_resource(Resource, Deleter) -> unique_resource< Resource, Deleter >;
  *
  * \note This function does not call \a del if \a res is equal to \a invalid.
  */
-template< typename Resource, typename Deleter, typename Invalid = typename std::decay< Resource >::type >
+template< typename Resource, typename Deleter, typename Invalid >
 inline unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >
 make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& del)
     noexcept(std::is_nothrow_constructible< unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >, Resource, Deleter >::value)
