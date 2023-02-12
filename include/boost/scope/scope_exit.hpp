@@ -76,7 +76,7 @@ public:
         typename F,
         typename = typename std::enable_if< detail::conjunction<
             std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, bool >,
-            detail::is_not_like< F, scope_exit >
+            detail::is_not_like< F, scope_exit< Func > >
         >::value >::type
     >
     explicit scope_exit(F&& func, bool active = true)

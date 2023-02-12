@@ -52,7 +52,7 @@ public:
         typename F,
         typename = typename std::enable_if< detail::conjunction<
             std::is_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >,
-            detail::is_not_like< Func, scope_final >
+            detail::is_not_like< Func, scope_final< Func > >
         >::value >::type
     >
     scope_final(F&& func) noexcept(std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::value) try :
