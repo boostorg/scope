@@ -82,7 +82,7 @@ public:
         typename F,
         typename = typename std::enable_if< detail::conjunction<
             std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, unsigned int, bool >,
-            detail::is_not_like< F, scope_fail< Func > >
+            detail::is_not_like< F, scope_fail >
         >::value >::type
     >
     explicit scope_fail(F&& func, bool active = true)
