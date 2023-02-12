@@ -95,6 +95,12 @@ void check_int()
         BOOST_TEST(!ur.allocated());
     }
 
+    {
+        boost::scope::unique_resource< int, empty_resource_deleter< int > > ur{ 10 };
+        BOOST_TEST_EQ(ur.get(), 10);
+        BOOST_TEST(ur.allocated());
+    }
+
     int n = 0, deleted_res1 = -1;
     {
         boost::scope::unique_resource< int, checking_resource_deleter< int > > ur{ 0, checking_resource_deleter< int >(deleted_res1, n) };
@@ -691,6 +697,204 @@ void check_deduction()
         BOOST_TEST_TRAIT_SAME(decltype(ur2), expected_unique_resource_t);
     }
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
+
+    int n = 0, deleted_res = -1;
+    {
+        typedef boost::scope::unique_resource< int, checking_resource_deleter< int > > expected_unique_resource_t;
+        auto ur = boost::scope::make_unique_resource_checked(10, 0, checking_resource_deleter< int >(deleted_res, n));
+        BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
+        BOOST_TEST_EQ(ur.get(), 10);
+        BOOST_TEST(ur.allocated());
+    }
+    BOOST_TEST_EQ(n, 1);
+    BOOST_TEST_EQ(deleted_res, 10);
+
+    n = 0;
+    deleted_res = -1;
+    {
+        typedef boost::scope::unique_resource< int, checking_resource_deleter< int > > expected_unique_resource_t;
+        auto ur = boost::scope::make_unique_resource_checked(0, 0, checking_resource_deleter< int >(deleted_res, n));
+        BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
+        BOOST_TEST_EQ(ur.get(), 0);
+        BOOST_TEST(!ur.allocated());
+    }
+    BOOST_TEST_EQ(n, 0);
+    BOOST_TEST_EQ(deleted_res, -1);
+
+    n = 0;
+    try
+    {
+        auto ur = boost::scope::make_unique_resource_checked(throw_on_copy_resource{ 0 }, throw_on_copy_resource{ 0 }, checking_resource_deleter< throw_on_copy_resource >(n));
+        BOOST_ERROR("An exception is expected to be thrown by throw_on_copy_resource");
+    }
+    catch (...)
+    {
+    }
+    BOOST_TEST_EQ(n, 0);
+}
+
+struct int_resource_traits
+{
+    static int make_default() noexcept
+    {
+        return -1;
+    }
+
+    static bool is_allocated(int res) noexcept
+    {
+        return res >= 0;
+    }
+};
+
+void check_resource_traits()
+{
+    {
+        boost::scope::unique_resource< int, empty_resource_deleter< int >, int_resource_traits > ur;
+        BOOST_TEST_EQ(ur.get(), int_resource_traits::make_default());
+        BOOST_TEST(!ur.allocated());
+    }
+
+    int n = 0, deleted_res1 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur{ -10, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur.get(), -10);
+        BOOST_TEST(!ur.allocated());
+    }
+    BOOST_TEST_EQ(n, 0);
+    BOOST_TEST_EQ(deleted_res1, -1);
+
+    n = 0;
+    deleted_res1 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur{ 0, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur.get(), 0);
+        BOOST_TEST(ur.allocated());
+    }
+    BOOST_TEST_EQ(n, 1);
+    BOOST_TEST_EQ(deleted_res1, 0);
+
+    n = 0;
+    deleted_res1 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur{ 10, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur.get(), 10);
+        BOOST_TEST(ur.allocated());
+        ur.release();
+        BOOST_TEST_EQ(ur.get(), int_resource_traits::make_default());
+        BOOST_TEST(!ur.allocated());
+    }
+    BOOST_TEST_EQ(n, 0);
+    BOOST_TEST_EQ(deleted_res1, -1);
+
+    n = 0;
+    deleted_res1 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur{ 10, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur.get(), 10);
+        BOOST_TEST(ur.allocated());
+        ur.reset();
+        BOOST_TEST(!ur.allocated());
+        BOOST_TEST_EQ(ur.get(), int_resource_traits::make_default());
+        BOOST_TEST_EQ(n, 1);
+        BOOST_TEST_EQ(deleted_res1, 10);
+    }
+    BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    deleted_res1 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur{ 10, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur.get(), 10);
+        BOOST_TEST(ur.allocated());
+        ur.reset(20);
+        BOOST_TEST_EQ(n, 1);
+        BOOST_TEST_EQ(deleted_res1, 10);
+        deleted_res1 = -1;
+        BOOST_TEST_EQ(ur.get(), 20);
+        BOOST_TEST(ur.allocated());
+    }
+    BOOST_TEST_EQ(n, 2);
+    BOOST_TEST_EQ(deleted_res1, 20);
+
+    n = 0;
+    deleted_res1 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur1{ 10, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur1.get(), 10);
+        BOOST_TEST(ur1.allocated());
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur2{ std::move(ur1) };
+        BOOST_TEST_EQ(ur2.get(), 10);
+        BOOST_TEST(ur2.allocated());
+        BOOST_TEST_EQ(ur1.get(), int_resource_traits::make_default());
+        BOOST_TEST(!ur1.allocated());
+    }
+    BOOST_TEST_EQ(n, 1);
+    BOOST_TEST_EQ(deleted_res1, 10);
+
+    n = 0;
+    deleted_res1 = -1;
+    int deleted_res2 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur1{ 10, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur1.get(), 10);
+        BOOST_TEST(ur1.allocated());
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur2{ 20, checking_resource_deleter< int >(deleted_res2, n) };
+        BOOST_TEST_EQ(ur2.get(), 20);
+        BOOST_TEST(ur2.allocated());
+        ur2 = std::move(ur1);
+        BOOST_TEST_EQ(ur2.get(), 10);
+        BOOST_TEST(ur2.allocated());
+        BOOST_TEST_EQ(ur1.get(), int_resource_traits::make_default());
+        BOOST_TEST(!ur1.allocated());
+        BOOST_TEST_EQ(n, 1);
+        BOOST_TEST_EQ(deleted_res1, -1);
+        BOOST_TEST_EQ(deleted_res2, 20);
+        deleted_res2 = -1;
+    }
+    BOOST_TEST_EQ(n, 2);
+    BOOST_TEST_EQ(deleted_res1, 10);
+    BOOST_TEST_EQ(deleted_res2, -1);
+
+    {
+        boost::scope::unique_resource< int, empty_resource_deleter< int >, int_resource_traits > ur1;
+        BOOST_TEST_EQ(ur1.get(), int_resource_traits::make_default());
+        BOOST_TEST(!ur1.allocated());
+        boost::scope::unique_resource< int, empty_resource_deleter< int >, int_resource_traits > ur2{ 10, empty_resource_deleter< int >() };
+        BOOST_TEST_EQ(ur2.get(), 10);
+        BOOST_TEST(ur2.allocated());
+        using namespace std;
+        swap(ur1, ur2);
+        BOOST_TEST_EQ(ur1.get(), 10);
+        BOOST_TEST(ur1.allocated());
+        BOOST_TEST_EQ(ur2.get(), int_resource_traits::make_default());
+        BOOST_TEST(!ur2.allocated());
+    }
+
+    n = 0;
+    deleted_res1 = -1;
+    deleted_res2 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur1{ 10, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur1.get(), 10);
+        BOOST_TEST_EQ(ur1.get_deleter().get_deleted(), &deleted_res1);
+        BOOST_TEST(ur1.allocated());
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur2{ 20, checking_resource_deleter< int >(deleted_res2, n) };
+        BOOST_TEST_EQ(ur2.get(), 20);
+        BOOST_TEST_EQ(ur2.get_deleter().get_deleted(), &deleted_res2);
+        BOOST_TEST(ur2.allocated());
+        using namespace std;
+        swap(ur1, ur2);
+        BOOST_TEST_EQ(n, 0);
+        BOOST_TEST_EQ(ur1.get(), 20);
+        BOOST_TEST_EQ(ur1.get_deleter().get_deleted(), &deleted_res2);
+        BOOST_TEST(ur1.allocated());
+        BOOST_TEST_EQ(ur2.get(), 10);
+        BOOST_TEST_EQ(ur2.get_deleter().get_deleted(), &deleted_res1);
+        BOOST_TEST(ur2.allocated());
+    }
+    BOOST_TEST_EQ(n, 2);
+    BOOST_TEST_EQ(deleted_res1, 10);
+    BOOST_TEST_EQ(deleted_res2, 20);
 }
 
 int main()
@@ -701,6 +905,7 @@ int main()
     check_ref();
     check_throw();
     check_deduction();
+    check_resource_traits();
 
     return boost::report_errors();
 }
