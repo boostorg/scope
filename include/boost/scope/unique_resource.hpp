@@ -806,16 +806,36 @@ public:
     {
     }
 
+    //! Constructs a unique resource guard with the given resource and a default-constructed deleter.
+    template<
+        typename R,
+        typename = typename std::enable_if< detail::conjunction<
+            std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< deleter_type >::type, bool >,
+            std::is_nothrow_default_constructible< deleter_type >,
+            detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
+        >::value >::type
+    >
+    explicit unique_resource(R&& res)
+        noexcept(std::is_nothrow_constructible<
+            data,
+            typename detail::move_or_copy_construct_ref< R, resource_type >::type,
+            typename detail::move_or_copy_construct_ref< deleter_type >::type,
+            bool
+        >::value) :
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< R, resource_type >::type >(res), static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(deleter_type()), true)
+    {
+    }
+
     //! Constructs a unique resource guard with the given resource and deleter.
     template<
         typename R,
-        typename D = deleter_type,
+        typename D,
         typename = typename std::enable_if< detail::conjunction<
             std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< D, deleter_type >::type, bool >,
             detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
         >::value >::type
     >
-    explicit unique_resource(R&& res, D&& del = deleter_type())
+    unique_resource(R&& res, D&& del)
         noexcept(std::is_nothrow_constructible<
             data,
             typename detail::move_or_copy_construct_ref< R, resource_type >::type,
