@@ -1000,7 +1000,10 @@ private:
     template< typename Res, typename Del, typename Inv >
     friend unique_resource< typename std::decay< Res >::type, typename std::decay< Del >::type >
     make_unique_resource_checked(Res&& res, Inv const& invalid, Del&& del)
-        noexcept(std::is_nothrow_constructible< unique_resource< typename std::decay< Res >::type, typename std::decay< Del >::type >, Res, Del >::value);
+        noexcept(detail::conjunction<
+            std::is_nothrow_constructible< typename std::decay< Res >::type, typename detail::move_or_copy_construct_ref< Res, typename std::decay< Res >::type >::type >,
+            std::is_nothrow_constructible< typename std::decay< Del >::type, typename detail::move_or_copy_construct_ref< Del, typename std::decay< Del >::type >::type >
+        >::value);
 };
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
@@ -1023,7 +1026,10 @@ unique_resource(Resource, Deleter) -> unique_resource< Resource, Deleter >;
 template< typename Resource, typename Deleter, typename Invalid >
 inline unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >
 make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& del)
-    noexcept(std::is_nothrow_constructible< unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >, Resource, Deleter >::value)
+    noexcept(detail::conjunction<
+        std::is_nothrow_constructible< typename std::decay< Resource >::type, typename detail::move_or_copy_construct_ref< Resource, typename std::decay< Resource >::type >::type >,
+        std::is_nothrow_constructible< typename std::decay< Deleter >::type, typename detail::move_or_copy_construct_ref< Deleter, typename std::decay< Deleter >::type >::type >
+    >::value)
 {
     return unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >(
         static_cast< Resource&& >(res), static_cast< Deleter&& >(del), res == invalid ? false : true);
