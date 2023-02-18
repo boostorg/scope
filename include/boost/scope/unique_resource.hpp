@@ -22,7 +22,6 @@
 #include <boost/scope/detail/compact_storage.hpp>
 #include <boost/scope/detail/move_or_copy_assign_ref.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
-#include <boost/scope/detail/type_traits/void_t.hpp>
 #include <boost/scope/detail/type_traits/is_swappable.hpp>
 #include <boost/scope/detail/type_traits/is_nothrow_swappable.hpp>
 #include <boost/scope/detail/type_traits/negation.hpp>
@@ -86,21 +85,33 @@ struct wrap_reference< T& >
     typedef ref_wrapper< T > type;
 };
 
-template< typename Resource, typename Traits, typename = void >
-struct has_custom_default : public std::false_type { };
 template< typename Resource, typename Traits >
-struct has_custom_default< Resource, Traits, detail::void_t< decltype(Traits::make_default()) > > :
-    public std::is_constructible< Resource, decltype(Traits::make_default()) >
+struct has_custom_default_impl
 {
+    template< typename Tr, typename R = decltype(Tr::make_default()) >
+    static typename std::is_constructible< Resource, R >::type _has_custom_default_check(int);
+    template< typename Tr >
+    static std::false_type _has_custom_default_check(...);
+
+    typedef decltype(has_custom_default_impl::_has_custom_default_check< Traits >(0)) type;
 };
 
-template< typename Resource, typename Traits, typename = void >
-struct has_deallocated_state : public std::false_type { };
 template< typename Resource, typename Traits >
-struct has_deallocated_state< Resource, Traits, detail::void_t< decltype(!!Traits::is_allocated(std::declval< Resource const& >())) > > :
-    public std::true_type
+struct has_custom_default : public has_custom_default_impl< Resource, Traits >::type { };
+
+template< typename Resource, typename Traits >
+struct has_deallocated_state_impl
 {
+    template< typename Tr, typename Res, typename R = decltype(!!Tr::is_allocated(std::declval< Res const& >())) >
+    static std::true_type _has_deallocated_state_check(int);
+    template< typename Tr, typename Res >
+    static std::false_type _has_deallocated_state_check(...);
+
+    typedef decltype(has_deallocated_state_impl::_has_deallocated_state_check< Traits, Resource >(0)) type;
 };
+
+template< typename Resource, typename Traits >
+struct has_deallocated_state : public has_deallocated_state_impl< Resource, Traits >::type { };
 
 template< typename Resource, typename Traits, bool = has_custom_default< Resource, Traits >::value >
 struct resource_holder :
@@ -719,50 +730,59 @@ private:
     }
 };
 
-template< typename T, typename = void >
-struct is_dereferenceable : public std::false_type { };
-template< >
-struct is_dereferenceable< void*, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const void*, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< volatile void*, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const volatile void*, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< void*&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const void*&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< volatile void*&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const volatile void*&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< void* const&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const void* const&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< volatile void* const&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const volatile void* const&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< void* volatile&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const void* volatile&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< volatile void* volatile&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const volatile void* volatile&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< void* const volatile&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const void* const volatile&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< volatile void* const volatile&, void > : public std::false_type { };
-template< >
-struct is_dereferenceable< const volatile void* const volatile&, void > : public std::false_type { };
 template< typename T >
-struct is_dereferenceable< T, detail::void_t< decltype(*std::declval< T const& >()) > > : public std::true_type { };
+struct is_dereferenceable_impl
+{
+    template< typename U, typename R = decltype(*std::declval< U const& >()) >
+    static std::true_type _is_dereferenceable_check(int);
+    template< typename U >
+    static std::false_type _is_dereferenceable_check(...);
+
+    typedef decltype(is_dereferenceable_impl::_is_dereferenceable_check< T >(0)) type;
+};
+
+template< typename T >
+struct is_dereferenceable : public is_dereferenceable_impl< T >::type { };
+template< >
+struct is_dereferenceable< void* > : public std::false_type { };
+template< >
+struct is_dereferenceable< const void* > : public std::false_type { };
+template< >
+struct is_dereferenceable< volatile void* > : public std::false_type { };
+template< >
+struct is_dereferenceable< const volatile void* > : public std::false_type { };
+template< >
+struct is_dereferenceable< void*& > : public std::false_type { };
+template< >
+struct is_dereferenceable< const void*& > : public std::false_type { };
+template< >
+struct is_dereferenceable< volatile void*& > : public std::false_type { };
+template< >
+struct is_dereferenceable< const volatile void*& > : public std::false_type { };
+template< >
+struct is_dereferenceable< void* const& > : public std::false_type { };
+template< >
+struct is_dereferenceable< const void* const& > : public std::false_type { };
+template< >
+struct is_dereferenceable< volatile void* const& > : public std::false_type { };
+template< >
+struct is_dereferenceable< const volatile void* const& > : public std::false_type { };
+template< >
+struct is_dereferenceable< void* volatile& > : public std::false_type { };
+template< >
+struct is_dereferenceable< const void* volatile& > : public std::false_type { };
+template< >
+struct is_dereferenceable< volatile void* volatile& > : public std::false_type { };
+template< >
+struct is_dereferenceable< const volatile void* volatile& > : public std::false_type { };
+template< >
+struct is_dereferenceable< void* const volatile& > : public std::false_type { };
+template< >
+struct is_dereferenceable< const void* const volatile& > : public std::false_type { };
+template< >
+struct is_dereferenceable< volatile void* const volatile& > : public std::false_type { };
+template< >
+struct is_dereferenceable< const volatile void* const volatile& > : public std::false_type { };
 
 template< typename T, bool = detail::is_dereferenceable< T >::value >
 struct dereference_traits { };

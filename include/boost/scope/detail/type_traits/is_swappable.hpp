@@ -37,18 +37,20 @@ using std::is_swappable;
 #else
 
 #include <utility>
-#include <boost/scope/detail/type_traits/void_t.hpp>
 
 namespace boost_scope_is_swappable_detail {
 
-using namespace std;
+using std::swap;
 
-template< typename T, typename = void >
-struct is_swappable_impl : public std::false_type { };
 template< typename T >
-struct is_swappable_impl< T, boost::scope::detail::void_t< decltype(swap(std::declval< T& >(), std::declval< T& >())) > > :
-    public std::true_type
+struct is_swappable_impl
 {
+    template< typename U, typename R = decltype(swap(std::declval< U& >(), std::declval< U& >())) >
+    static std::true_type _is_swappable_check(int);
+    template< typename U >
+    static std::false_type _is_swappable_check(...);
+
+    typedef decltype(is_swappable_impl::_is_swappable_check< T >(0)) type;
 };
 
 } // namespace boost_scope_is_swappable_detail
@@ -58,7 +60,7 @@ namespace scope {
 namespace detail {
 
 template< typename T >
-using is_swappable = ::boost_scope_is_swappable_detail::is_swappable_impl< T >;
+struct is_swappable : public ::boost_scope_is_swappable_detail::is_swappable_impl< T >::type { };
 
 } // namespace detail
 } // namespace scope
