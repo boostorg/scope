@@ -773,6 +773,8 @@ struct dereference_traits< T, true >
     static constexpr bool is_noexcept = noexcept(*std::declval< T const& >());
 };
 
+struct unique_resource_access;
+
 } // namespace detail
 
 /*!
@@ -781,6 +783,8 @@ struct dereference_traits< T, true >
 template< typename Resource, typename Deleter, typename Traits >
 class unique_resource
 {
+    friend struct detail::unique_resource_access;
+
 public:
     //! Resource type
     typedef Resource resource_type;
@@ -996,20 +1000,31 @@ private:
             throw;
         }
     }
-
-    template< typename Res, typename Del, typename Inv >
-    friend unique_resource< typename std::decay< Res >::type, typename std::decay< Del >::type >
-    make_unique_resource_checked(Res&& res, Inv const& invalid, Del&& del)
-        noexcept(detail::conjunction<
-            std::is_nothrow_constructible< typename std::decay< Res >::type, typename detail::move_or_copy_construct_ref< Res, typename std::decay< Res >::type >::type >,
-            std::is_nothrow_constructible< typename std::decay< Del >::type, typename detail::move_or_copy_construct_ref< Del, typename std::decay< Del >::type >::type >
-        >::value);
 };
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 template< typename Resource, typename Deleter >
 unique_resource(Resource, Deleter) -> unique_resource< Resource, Deleter >;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
+
+namespace detail {
+
+struct unique_resource_access
+{
+    template< typename Resource, typename Deleter, typename Invalid >
+    static unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >
+    make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& del)
+        noexcept(detail::conjunction<
+            std::is_nothrow_constructible< typename std::decay< Resource >::type, typename detail::move_or_copy_construct_ref< Resource, typename std::decay< Resource >::type >::type >,
+            std::is_nothrow_constructible< typename std::decay< Deleter >::type, typename detail::move_or_copy_construct_ref< Deleter, typename std::decay< Deleter >::type >::type >
+        >::value)
+    {
+        return unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >(
+            static_cast< Resource&& >(res), static_cast< Deleter&& >(del), res == invalid ? false : true);
+    }
+};
+
+} // namespace detail
 
 /*!
  * \brief Checks if the resource is valid and creates a \c unique_resource wrapper.
@@ -1031,8 +1046,7 @@ make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& d
         std::is_nothrow_constructible< typename std::decay< Deleter >::type, typename detail::move_or_copy_construct_ref< Deleter, typename std::decay< Deleter >::type >::type >
     >::value)
 {
-    return unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >(
-        static_cast< Resource&& >(res), static_cast< Deleter&& >(del), res == invalid ? false : true);
+    return detail::unique_resource_access::make_unique_resource_checked(static_cast< Resource&& >(res), invalid, static_cast< Deleter&& >(del));
 }
 
 } // namespace scope
