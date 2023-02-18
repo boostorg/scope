@@ -22,8 +22,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <cerrno>
+#include <cstdio>
 
-int main()
+int main(int argc, char* args[])
 {
     {
         boost::scope::unique_posix_fd ur;
@@ -31,19 +32,26 @@ int main()
         BOOST_TEST(!ur.allocated());
     }
 
-    int fd = 0;
+    if (argc > 0)
     {
-        boost::scope::unique_posix_fd ur(::open("/dev/null", O_RDONLY));
-        BOOST_TEST_GE(ur.get(), 0);
-        BOOST_TEST(ur.allocated());
-        fd = ur.get();
-    }
+        int fd = 0;
+        {
+            boost::scope::unique_posix_fd ur(::open(args[0], O_RDONLY));
+            BOOST_TEST_GE(ur.get(), 0);
+            BOOST_TEST(ur.allocated());
+            fd = ur.get();
+        }
 
-    struct stat st = {};
-    int res = ::fstat(fd, &st);
-    BOOST_TEST_LT(res, 0);
-    int err = errno;
-    BOOST_TEST_EQ(err, EBADF);
+        struct stat st = {};
+        int res = ::fstat(fd, &st);
+        BOOST_TEST_LT(res, 0);
+        int err = errno;
+        BOOST_TEST_EQ(err, EBADF);
+    }
+    else
+    {
+        std::puts("Test executable file name not provided in process args");
+    }
 
     return boost::report_errors();
 }
