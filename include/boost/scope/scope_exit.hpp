@@ -28,6 +28,17 @@
 namespace boost {
 namespace scope {
 
+template< typename Func >
+class scope_exit;
+
+namespace detail {
+
+// Workaround for clang < 5.0 which can't pass scope_exit as a template template parameter from within scope_exit definition
+template< typename T >
+using is_not_like_scope_exit = detail::is_not_like< T, scope_exit >;
+
+} // namespace detail
+
 /*!
  * \brief Scope exit guard that invokes a function upon leaving the scope.
  *
@@ -76,7 +87,7 @@ public:
         typename F,
         typename = typename std::enable_if< detail::conjunction<
             std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, bool >,
-            detail::is_not_like< F, scope_exit >
+            detail::is_not_like_scope_exit< F >
         >::value >::type
     >
     explicit scope_exit(F&& func, bool active = true)

@@ -29,6 +29,17 @@
 namespace boost {
 namespace scope {
 
+template< typename Func >
+class scope_success;
+
+namespace detail {
+
+// Workaround for clang < 5.0 which can't pass scope_success as a template template parameter from within scope_success definition
+template< typename T >
+using is_not_like_scope_success = detail::is_not_like< T, scope_success >;
+
+} // namespace detail
+
 /*!
  * \brief Scope exit guard that invokes a function upon leaving the scope normally.
  *
@@ -80,7 +91,7 @@ public:
         typename F,
         typename = typename std::enable_if< detail::conjunction<
             std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, unsigned int, bool >,
-            detail::is_not_like< F, scope_success >
+            detail::is_not_like_scope_success< F >
         >::value >::type
     >
     explicit scope_success(F&& func, bool active = true)

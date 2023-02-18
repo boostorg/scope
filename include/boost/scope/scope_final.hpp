@@ -27,6 +27,17 @@
 namespace boost {
 namespace scope {
 
+template< typename Func >
+class scope_final;
+
+namespace detail {
+
+// Workaround for clang < 5.0 which can't pass scope_final as a template template parameter from within scope_final definition
+template< typename T >
+using is_not_like_scope_final = detail::is_not_like< T, scope_final >;
+
+} // namespace detail
+
 /*!
  * \brief Scope final guard that invokes a function upon leaving the scope.
  *
@@ -52,7 +63,7 @@ public:
         typename F,
         typename = typename std::enable_if< detail::conjunction<
             std::is_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >,
-            detail::is_not_like< Func, scope_final >
+            detail::is_not_like_scope_final< F >
         >::value >::type
     >
     scope_final(F&& func) noexcept(std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::value) try :
