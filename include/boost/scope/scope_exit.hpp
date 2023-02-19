@@ -72,10 +72,22 @@ private:
         bool m_active;
 
         template< typename F, typename = typename std::enable_if< std::is_constructible< Func, F >::value >::type >
-        explicit data(F&& func, bool active) noexcept(std::is_nothrow_constructible< Func, F >::value) :
+        explicit data(F&& func, bool active, std::true_type) noexcept :
             func_base(static_cast< F&& >(func)),
             m_active(active)
         {
+        }
+
+        template< typename F, typename = typename std::enable_if< std::is_constructible< Func, F >::value >::type >
+        explicit data(F&& func, bool active, std::false_type) try :
+            func_base(static_cast< F&& >(func)),
+            m_active(active)
+        {
+        }
+        catch (...)
+        {
+            if (active)
+                func();
         }
     };
 
@@ -86,28 +98,44 @@ public:
     template<
         typename F,
         typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, bool >,
+            std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, bool, typename std::is_nothrow_constructible< Func, F >::type >,
             detail::is_not_like_scope_exit< F >
         >::value >::type
     >
     explicit scope_exit(F&& func, bool active = true)
-        noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, bool >::value) try :
-        m_data(static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func), active)
+        noexcept(std::is_nothrow_constructible<
+            data,
+            typename detail::move_or_copy_construct_ref< F, Func >::type,
+            bool,
+            typename std::is_nothrow_constructible< Func, F >::type
+        >::value) :
+        m_data(static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func), active, typename std::is_nothrow_constructible< Func, F >::type())
     {
-    }
-    catch (...)
-    {
-        if (active)
-            func();
     }
 
     //! Move-constructs a scope guard, deactivates the original scope guard.
     template<
-        bool Requires = std::is_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, bool >::value,
+        bool Requires = std::is_constructible<
+            data,
+            typename detail::move_or_copy_construct_ref< Func >::type,
+            bool,
+            typename std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< Func >::type >::type
+        >::value,
         typename = typename std::enable_if< Requires >::type
     >
-    scope_exit(scope_exit&& that) noexcept(std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, bool >::value) :
-        m_data(static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.get()), that.m_data.m_active)
+    scope_exit(scope_exit&& that)
+        noexcept(std::is_nothrow_constructible<
+            data,
+            typename detail::move_or_copy_construct_ref< Func >::type,
+            bool,
+            typename std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< Func >::type >::type
+        >::value) :
+        m_data
+        (
+            static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.get()),
+            that.m_data.m_active,
+            typename std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< Func >::type >::type()
+        )
     {
         that.m_data.m_active = false;
     }

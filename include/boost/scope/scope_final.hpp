@@ -55,24 +55,54 @@ template< typename Func >
 class scope_final
 {
 private:
-    Func m_func;
+    struct data
+    {
+        Func m_func;
+
+        template< typename F, typename = typename std::enable_if< std::is_constructible< Func, F >::value >::type >
+        explicit data(F&& func, std::true_type) noexcept :
+            m_func(static_cast< F&& >(func))
+        {
+        }
+
+        template< typename F, typename = typename std::enable_if< std::is_constructible< Func, F >::value >::type >
+        explicit data(F&& func, std::false_type) try :
+            m_func(static_cast< F&& >(func))
+        {
+        }
+        catch (...)
+        {
+            func();
+        }
+    };
+
+    data m_data;
 
 public:
     //! Constructs a scope final guard with a given callable function object.
     template<
         typename F,
         typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >,
+            std::is_constructible<
+                data,
+                typename detail::move_or_copy_construct_ref< F, Func >::type,
+                typename std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::type
+            >,
             detail::is_not_like_scope_final< F >
         >::value >::type
     >
-    scope_final(F&& func) noexcept(std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::value) try :
-        m_func(static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func))
+    scope_final(F&& func)
+        noexcept(std::is_nothrow_constructible<
+            data,
+            typename detail::move_or_copy_construct_ref< F, Func >::type,
+            typename std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::type
+        >::value) :
+        m_data
+        (
+            static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func),
+            typename std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::type()
+        )
     {
-    }
-    catch (...)
-    {
-        func();
     }
 
     scope_final(scope_final const&) = delete;
@@ -81,7 +111,7 @@ public:
     //! Invokes the wrapped callable function object and destroys the callable.
     ~scope_final() noexcept(noexcept(std::declval< Func& >()()))
     {
-        m_func();
+        m_data.m_func();
     }
 };
 
