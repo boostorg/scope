@@ -27,6 +27,7 @@
 #include <boost/scope/detail/type_traits/negation.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 #include <boost/scope/detail/type_traits/disjunction.hpp>
+#include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -1162,5 +1163,7 @@ make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& d
 
 } // namespace scope
 } // namespace boost
+
+#include <boost/scope/detail/footer.hpp>
 
 #endif // BOOST_SCOPE_UNIQUE_RESOURCE_HPP_INCLUDED_

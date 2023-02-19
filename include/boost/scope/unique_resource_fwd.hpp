@@ -18,6 +18,7 @@
 #include <boost/config.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
+#include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -58,5 +59,7 @@ using scope::unique_resource;
 using scope::make_unique_resource_checked;
 
 } // namespace boost
+
+#include <boost/scope/detail/footer.hpp>
 
 #endif // BOOST_SCOPE_UNIQUE_RESOURCE_FWD_HPP_INCLUDED_

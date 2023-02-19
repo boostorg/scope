@@ -20,6 +20,7 @@
 #include <boost/scope/detail/compact_storage.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
+#include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -193,5 +194,7 @@ using scope::scope_exit;
 using scope::make_scope_exit;
 
 } // namespace boost
+
+#include <boost/scope/detail/footer.hpp>
 
 #endif // BOOST_SCOPE_SCOPE_EXIT_HPP_INCLUDED_

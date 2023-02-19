@@ -19,6 +19,7 @@
 #include <boost/scope/detail/is_not_like.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
+#include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -149,5 +150,7 @@ using scope::scope_final;
     boost::scope::scope_final BOOST_JOIN(_boost_scope_final_, BOOST_SCOPE_DETAIL_UNIQUE_VAR_TAG) =
 
 } // namespace boost
+
+#include <boost/scope/detail/footer.hpp>
 
 #endif // BOOST_SCOPE_SCOPE_FINAL_HPP_INCLUDED_

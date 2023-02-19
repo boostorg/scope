@@ -20,6 +20,7 @@
 #include <boost/scope/detail/type_traits/is_final.hpp>
 #include <boost/scope/detail/type_traits/negation.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
+#include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -120,5 +121,7 @@ public:
 } // namespace detail
 } // namespace scope
 } // namespace boost
+
+#include <boost/scope/detail/footer.hpp>
 
 #endif // BOOST_SCOPE_DETAIL_COMPACT_STORAGE_HPP_INCLUDED_

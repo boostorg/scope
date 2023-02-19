@@ -16,6 +16,7 @@
 
 #include <boost/scope/unique_resource.hpp>
 #include <boost/scope/posix_fd_resource.hpp>
+#include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -29,5 +30,7 @@ typedef unique_resource< int, posix_fd_deleter, posix_fd_resource_traits > uniqu
 
 } // namespace scope
 } // namespace boost
+
+#include <boost/scope/detail/footer.hpp>
 
 #endif // BOOST_SCOPE_UNIQUE_POSIX_FD_HPP_INCLUDED_

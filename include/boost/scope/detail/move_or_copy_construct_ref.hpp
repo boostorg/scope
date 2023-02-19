@@ -16,6 +16,7 @@
 
 #include <type_traits>
 #include <boost/config.hpp>
+#include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
@@ -45,5 +46,7 @@ struct move_or_copy_construct_ref< From&, To >
 } // namespace detail
 } // namespace scope
 } // namespace boost
+
+#include <boost/scope/detail/footer.hpp>
 
 #endif // BOOST_SCOPE_DETAIL_MOVE_OR_COPY_CONSTRUCT_REF_HPP_INCLUDED_
