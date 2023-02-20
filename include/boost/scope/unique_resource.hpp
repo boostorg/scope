@@ -296,8 +296,8 @@ public:
         typename D,
         typename = typename std::enable_if< std::is_constructible< internal_deleter_type, D >::value >::type
     >
-    explicit deleter_holder(D&& del, resource_type& res, bool allocated) noexcept(std::is_constructible< internal_deleter_type, D >::value) :
-        deleter_holder(static_cast< D&& >(del), res, allocated, typename std::is_constructible< internal_deleter_type, D >::type())
+    explicit deleter_holder(D&& del, resource_type& res, bool allocated) noexcept(std::is_nothrow_constructible< internal_deleter_type, D >::value) :
+        deleter_holder(static_cast< D&& >(del), res, allocated, typename std::is_nothrow_constructible< internal_deleter_type, D >::type())
     {
     }
 
@@ -737,7 +737,7 @@ private:
     unique_resource_data(unique_resource_data&& that, std::false_type) try :
         resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
         deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()), resource_holder::get(),
-            std::is_nothrow_constructible< internal_resource_type, resource_type&& >::value && that.is_allocated()) // don't deallocate if the resource was copy-constructed
+            std::is_nothrow_constructible< internal_resource_type, resource_type&& >::value && is_allocated()) // don't deallocate if the resource was copy-constructed
     {
         that.set_deallocated();
     }

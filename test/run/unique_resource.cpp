@@ -28,6 +28,12 @@ struct empty_resource_deleter
 };
 
 template< typename Resource >
+inline void copy_resource(Resource const& from, Resource& to)
+{
+    to = from;
+}
+
+template< typename Resource >
 class checking_resource_deleter
 {
 private:
@@ -80,7 +86,7 @@ public:
     void operator() (Resource const& res) const noexcept
     {
         if (m_deleted)
-            *m_deleted = res;
+            copy_resource(res, *m_deleted);
         ++m_n;
     }
 };
@@ -561,11 +567,11 @@ void check_ref()
 class throw_on_move_resource
 {
 private:
-    int value;
+    int m_value;
 
 public:
     explicit throw_on_move_resource(int v = 0) noexcept :
-        value(v)
+        m_value(v)
     {
     }
 
@@ -583,12 +589,12 @@ public:
 
     int get() const noexcept
     {
-        return value;
+        return m_value;
     }
 
     bool operator== (throw_on_move_resource const& that) const noexcept
     {
-        return value == that.value;
+        return m_value == that.m_value;
     }
 
     bool operator!= (throw_on_move_resource const& that) const noexcept
@@ -598,7 +604,7 @@ public:
 
     friend std::ostream& operator<< (std::ostream& strm, throw_on_move_resource const& res)
     {
-        strm << "{ " << res.value << " }";
+        strm << "{ " << res.m_value << " }";
         return strm;
     }
 };
@@ -606,18 +612,18 @@ public:
 class throw_on_copy_resource
 {
 private:
-    int value;
+    int m_value;
     mutable bool m_throw;
 
 public:
     explicit throw_on_copy_resource(int v = 0, bool do_throw = true) noexcept :
-        value(v),
+        m_value(v),
         m_throw(do_throw)
     {
     }
 
     throw_on_copy_resource(throw_on_copy_resource const& that) :
-        value(that.value),
+        m_value(that.m_value),
         m_throw(that.m_throw)
     {
         if (m_throw)
@@ -625,7 +631,7 @@ public:
     }
     throw_on_copy_resource& operator= (throw_on_copy_resource const& that)
     {
-        value = that.value;
+        m_value = that.m_value;
         m_throw = that.m_throw;
         if (m_throw)
             throw std::runtime_error("throw_on_copy_resource copy assignment");
@@ -637,7 +643,7 @@ public:
 
     int get() const noexcept
     {
-        return value;
+        return m_value;
     }
 
     void set_throw(bool do_throw) const noexcept
@@ -647,7 +653,7 @@ public:
 
     bool operator== (throw_on_copy_resource const& that) const noexcept
     {
-        return value == that.value;
+        return m_value == that.m_value;
     }
 
     bool operator!= (throw_on_copy_resource const& that) const noexcept
@@ -657,12 +663,12 @@ public:
 
     friend std::ostream& operator<< (std::ostream& strm, throw_on_copy_resource const& res)
     {
-        strm << "{ " << res.value << " }";
+        strm << "{ " << res.m_value << " }";
         return strm;
     }
 };
 
-void check_throw()
+void check_throw_resource()
 {
     int n = 0;
     try
@@ -730,6 +736,278 @@ void check_throw()
     {
     }
     BOOST_TEST_EQ(n, 2);
+}
+
+class moveable_resource
+{
+private:
+    int m_value;
+
+public:
+    explicit moveable_resource(int value = 0) noexcept :
+        m_value(value)
+    {
+    }
+
+    moveable_resource(moveable_resource&& that) noexcept :
+        m_value(that.m_value)
+    {
+        that.m_value = -1;
+    }
+
+    moveable_resource& operator= (moveable_resource&& that) noexcept
+    {
+        m_value = that.m_value;
+        that.m_value = -1;
+        return *this;
+    }
+
+    moveable_resource(moveable_resource const&) = delete;
+    moveable_resource& operator= (moveable_resource const&) = delete;
+
+    int get() const noexcept
+    {
+        return m_value;
+    }
+
+    bool operator== (moveable_resource const& that) const noexcept
+    {
+        return m_value == that.m_value;
+    }
+
+    bool operator!= (moveable_resource const& that) const noexcept
+    {
+        return !operator==(that);
+    }
+
+    friend std::ostream& operator<< (std::ostream& strm, moveable_resource const& res)
+    {
+        strm << "{ " << res.m_value << " }";
+        return strm;
+    }
+
+    friend void copy_resource(moveable_resource const& from, moveable_resource& to)
+    {
+        to.m_value = from.m_value;
+    }
+};
+
+class copyable_resource
+{
+private:
+    int m_value;
+
+public:
+    explicit copyable_resource(int value = 0) noexcept :
+        m_value(value)
+    {
+    }
+
+    copyable_resource(copyable_resource const&) = default;
+    copyable_resource& operator= (copyable_resource const&) = default;
+
+    copyable_resource(copyable_resource&&) = delete;
+    copyable_resource& operator= (copyable_resource&&) = delete;
+
+    int get() const noexcept
+    {
+        return m_value;
+    }
+
+    bool operator== (copyable_resource const& that) const noexcept
+    {
+        return m_value == that.m_value;
+    }
+
+    bool operator!= (copyable_resource const& that) const noexcept
+    {
+        return !operator==(that);
+    }
+
+    friend std::ostream& operator<< (std::ostream& strm, copyable_resource const& res)
+    {
+        strm << "{ " << res.m_value << " }";
+        return strm;
+    }
+};
+
+template< typename Resource >
+class throwing_resource_deleter :
+    public checking_resource_deleter< Resource >
+{
+private:
+    typedef checking_resource_deleter< Resource > base_type;
+
+private:
+    mutable bool m_throw;
+
+public:
+    explicit throwing_resource_deleter(int& n) noexcept :
+        base_type(n),
+        m_throw(false)
+    {
+    }
+
+    explicit throwing_resource_deleter(Resource& deleted, int& n) noexcept :
+        base_type(deleted, n),
+        m_throw(false)
+    {
+    }
+
+    throwing_resource_deleter(throwing_resource_deleter const& that) :
+        base_type(static_cast< base_type const& >(that)),
+        m_throw(that.m_throw)
+    {
+        if (m_throw)
+            throw std::runtime_error("throwing_resource_deleter copy ctor");
+    }
+
+    throwing_resource_deleter& operator=(throwing_resource_deleter const& that)
+    {
+        *static_cast< base_type* >(this) = static_cast< base_type const& >(that);
+        m_throw = that.m_throw;
+        if (m_throw)
+            throw std::runtime_error("throwing_resource_deleter copy assignment");
+        return *this;
+    }
+
+    void set_throw(bool do_throw) const noexcept
+    {
+        m_throw = do_throw;
+    }
+};
+
+template< typename Resource >
+using default_resource_traits = void;
+
+template< typename Resource >
+struct wrapped_int_resource_traits
+{
+    static Resource make_default() noexcept
+    {
+        return Resource(-1);
+    }
+
+    static bool is_allocated(Resource const& res) noexcept
+    {
+        return res.get() >= 0;
+    }
+};
+
+template< template< typename > class Traits >
+void check_throw_deleter()
+{
+    int n = 0;
+    {
+        copyable_resource deleted_res1;
+        try
+        {
+            typedef boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > > unique_resource_t;
+            unique_resource_t ur1{ copyable_resource{ 10 }, throwing_resource_deleter< copyable_resource >(deleted_res1, n) };
+            ur1.get_deleter().set_throw(true);
+            try
+            {
+                unique_resource_t ur2 = std::move(ur1);
+                BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
+            }
+            catch (...)
+            {
+                BOOST_TEST_EQ(n, 0);
+                throw;
+            }
+        }
+        catch (...)
+        {
+        }
+        BOOST_TEST_EQ(n, 1);
+        BOOST_TEST_EQ(deleted_res1, copyable_resource{ 10 });
+    }
+
+    n = 0;
+    {
+        copyable_resource deleted_res1, deleted_res2;
+        try
+        {
+            typedef boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > > unique_resource_t;
+            unique_resource_t ur1{ copyable_resource{ 10 }, throwing_resource_deleter< copyable_resource >(deleted_res1, n) };
+            ur1.get_deleter().set_throw(true);
+            try
+            {
+                unique_resource_t ur2{ copyable_resource{ 20 }, throwing_resource_deleter< copyable_resource >(deleted_res2, n) };
+                ur2 = std::move(ur1);
+                BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
+            }
+            catch (...)
+            {
+                BOOST_TEST_EQ(n, 1);
+                BOOST_TEST_EQ(deleted_res2, copyable_resource{ 20 });
+                throw;
+            }
+        }
+        catch (...)
+        {
+        }
+        BOOST_TEST_EQ(n, 2);
+        BOOST_TEST_EQ(deleted_res1, copyable_resource{ 10 });
+    }
+
+    n = 0;
+    {
+        moveable_resource deleted_res1;
+        try
+        {
+            typedef boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > > unique_resource_t;
+            unique_resource_t ur1{ moveable_resource{ 10 }, throwing_resource_deleter< moveable_resource >(deleted_res1, n) };
+            ur1.get_deleter().set_throw(true);
+            try
+            {
+                unique_resource_t ur2 = std::move(ur1);
+                BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
+            }
+            catch (...)
+            {
+                // The resource was moved from ur1, but the deleter could not have been moved and was called on the moved resource
+                BOOST_TEST_EQ(n, 1);
+                BOOST_TEST_EQ(deleted_res1, moveable_resource{ 10 });
+                throw;
+            }
+        }
+        catch (...)
+        {
+        }
+        BOOST_TEST_EQ(n, 1);
+    }
+
+    n = 0;
+    {
+        moveable_resource deleted_res1, deleted_res2;
+        try
+        {
+            typedef boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > > unique_resource_t;
+            unique_resource_t ur1{ moveable_resource{ 10 }, throwing_resource_deleter< moveable_resource >(deleted_res1, n) };
+            ur1.get_deleter().set_throw(true);
+            try
+            {
+                unique_resource_t ur2{ moveable_resource{ 20 }, throwing_resource_deleter< moveable_resource >(deleted_res2, n) };
+                ur2 = std::move(ur1);
+                BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
+            }
+            catch (...)
+            {
+                // First, ur2 was reset - the deleter was called on the resource 20. Then the deleter could not have been moved from ur1,
+                // leaving ur1 intact.
+                BOOST_TEST_EQ(n, 1);
+                BOOST_TEST_EQ(deleted_res2, moveable_resource{ 20 });
+                throw;
+            }
+        }
+        catch (...)
+        {
+        }
+        BOOST_TEST_EQ(n, 2);
+        BOOST_TEST_EQ(deleted_res1, moveable_resource{ 10 });
+        BOOST_TEST_EQ(deleted_res2, moveable_resource{ 20 });
+    }
 }
 
 
@@ -960,7 +1238,9 @@ int main()
     check_struct();
     check_ptr();
     check_ref();
-    check_throw();
+    check_throw_resource();
+    check_throw_deleter< default_resource_traits >();
+    check_throw_deleter< wrapped_int_resource_traits >();
     check_deduction();
     check_resource_traits();
 
