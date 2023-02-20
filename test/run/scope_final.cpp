@@ -83,10 +83,11 @@ void check_throw()
     BOOST_TEST_EQ(n, 1);
 
     n = 0;
-    bool scope_ended = false, exception_thrown = false;
+    bool scope_ended = false, exception_thrown = false, func_destroyed = false;
     try
     {
-        boost::scope::scope_final< throw_on_call_func > guard{ throw_on_call_func(n) };
+        boost::scope::scope_final< throw_on_call_func > guard{ throw_on_call_func(n, func_destroyed) };
+        func_destroyed = false;
         scope_ended = true;
     }
     catch (...)
@@ -96,6 +97,7 @@ void check_throw()
     BOOST_TEST_EQ(n, 1);
     BOOST_TEST(scope_ended);
     BOOST_TEST(exception_thrown);
+    BOOST_TEST(func_destroyed);
 }
 
 void check_deduction()

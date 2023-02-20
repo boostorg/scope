@@ -102,10 +102,17 @@ struct throw_on_move_func
 struct throw_on_call_func
 {
     int* m_n;
+    bool* m_destroyed;
 
-    explicit throw_on_call_func(int& n) noexcept :
-        m_n(&n)
+    explicit throw_on_call_func(int& n, bool& destroyed) noexcept :
+        m_n(&n),
+        m_destroyed(&destroyed)
     {
+    }
+
+    ~throw_on_call_func()
+    {
+        *m_destroyed = true;
     }
 
     void operator()() const
