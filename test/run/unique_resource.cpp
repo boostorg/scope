@@ -607,20 +607,29 @@ class throw_on_copy_resource
 {
 private:
     int value;
+    mutable bool m_throw;
 
 public:
-    explicit throw_on_copy_resource(int v = 0) noexcept :
-        value(v)
+    explicit throw_on_copy_resource(int v = 0, bool do_throw = true) noexcept :
+        value(v),
+        m_throw(do_throw)
     {
     }
 
-    throw_on_copy_resource(throw_on_copy_resource const&)
+    throw_on_copy_resource(throw_on_copy_resource const& that) :
+        value(that.value),
+        m_throw(that.m_throw)
     {
-        throw std::runtime_error("throw_on_copy_resource copy ctor");
+        if (m_throw)
+            throw std::runtime_error("throw_on_copy_resource copy ctor");
     }
-    throw_on_copy_resource& operator= (throw_on_copy_resource const&)
+    throw_on_copy_resource& operator= (throw_on_copy_resource const& that)
     {
-        throw std::runtime_error("throw_on_copy_resource copy assignment");
+        value = that.value;
+        m_throw = that.m_throw;
+        if (m_throw)
+            throw std::runtime_error("throw_on_copy_resource copy assignment");
+        return *this;
     }
 
     throw_on_copy_resource(throw_on_copy_resource&&) = delete;
@@ -629,6 +638,11 @@ public:
     int get() const noexcept
     {
         return value;
+    }
+
+    void set_throw(bool do_throw) const noexcept
+    {
+        m_throw = do_throw;
     }
 
     bool operator== (throw_on_copy_resource const& that) const noexcept
@@ -673,6 +687,49 @@ void check_throw()
     {
     }
     BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    try
+    {
+        boost::scope::unique_resource< throw_on_copy_resource, checking_resource_deleter< throw_on_copy_resource > > ur1{ throw_on_copy_resource{ 10, false }, checking_resource_deleter< throw_on_copy_resource >(n) };
+        ur1.get().set_throw(true);
+        try
+        {
+            boost::scope::unique_resource< throw_on_copy_resource, checking_resource_deleter< throw_on_copy_resource > > ur2 = std::move(ur1);
+            BOOST_ERROR("An exception is expected to be thrown by throw_on_copy_resource");
+        }
+        catch (...)
+        {
+            BOOST_TEST_EQ(n, 0);
+            throw;
+        }
+    }
+    catch (...)
+    {
+    }
+    BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    try
+    {
+        boost::scope::unique_resource< throw_on_copy_resource, checking_resource_deleter< throw_on_copy_resource > > ur1{ throw_on_copy_resource{ 10, false }, checking_resource_deleter< throw_on_copy_resource >(n) };
+        ur1.get().set_throw(true);
+        try
+        {
+            boost::scope::unique_resource< throw_on_copy_resource, checking_resource_deleter< throw_on_copy_resource > > ur2{ throw_on_copy_resource{ 20, false }, checking_resource_deleter< throw_on_copy_resource >(n) };
+            ur2 = std::move(ur1);
+            BOOST_ERROR("An exception is expected to be thrown by throw_on_copy_resource");
+        }
+        catch (...)
+        {
+            BOOST_TEST_EQ(n, 1);
+            throw;
+        }
+    }
+    catch (...)
+    {
+    }
+    BOOST_TEST_EQ(n, 2);
 }
 
 
