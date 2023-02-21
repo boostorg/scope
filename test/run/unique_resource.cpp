@@ -101,13 +101,22 @@ void check_int()
         BOOST_TEST(!ur.allocated());
     }
 
+    int n = 0;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int > > ur{ boost::scope::default_resource, checking_resource_deleter< int >(n) };
+        BOOST_TEST_EQ(ur.get(), 0);
+        BOOST_TEST(!ur.allocated());
+    }
+    BOOST_TEST_EQ(n, 0);
+
     {
         boost::scope::unique_resource< int, empty_resource_deleter< int > > ur{ 10 };
         BOOST_TEST_EQ(ur.get(), 10);
         BOOST_TEST(ur.allocated());
     }
 
-    int n = 0, deleted_res1 = -1;
+    int deleted_res1 = -1;
+    n = 0;
     {
         boost::scope::unique_resource< int, checking_resource_deleter< int > > ur{ 0, checking_resource_deleter< int >(deleted_res1, n) };
         BOOST_TEST_EQ(ur.get(), 0);
@@ -842,15 +851,15 @@ private:
     mutable bool m_throw;
 
 public:
-    explicit throwing_resource_deleter(int& n) noexcept :
+    explicit throwing_resource_deleter(int& n, bool do_throw = false) noexcept :
         base_type(n),
-        m_throw(false)
+        m_throw(do_throw)
     {
     }
 
-    explicit throwing_resource_deleter(Resource& deleted, int& n) noexcept :
+    explicit throwing_resource_deleter(Resource& deleted, int& n, bool do_throw = false) noexcept :
         base_type(deleted, n),
-        m_throw(false)
+        m_throw(do_throw)
     {
     }
 
@@ -898,6 +907,30 @@ template< template< typename > class Traits >
 void check_throw_deleter()
 {
     int n = 0;
+    {
+        try
+        {
+            typedef boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > > unique_resource_t;
+            unique_resource_t ur1{ boost::scope::default_resource, throwing_resource_deleter< copyable_resource >(n) };
+            ur1.get_deleter().set_throw(true);
+            try
+            {
+                unique_resource_t ur2 = std::move(ur1);
+                BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
+            }
+            catch (...)
+            {
+                BOOST_TEST_EQ(n, 0);
+                throw;
+            }
+        }
+        catch (...)
+        {
+        }
+        BOOST_TEST_EQ(n, 0);
+    }
+
+    n = 0;
     {
         copyable_resource deleted_res1;
         try
@@ -949,6 +982,30 @@ void check_throw_deleter()
         }
         BOOST_TEST_EQ(n, 2);
         BOOST_TEST_EQ(deleted_res1, copyable_resource{ 10 });
+    }
+
+    n = 0;
+    {
+        try
+        {
+            typedef boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > > unique_resource_t;
+            unique_resource_t ur1{ boost::scope::default_resource, throwing_resource_deleter< moveable_resource >(n) };
+            ur1.get_deleter().set_throw(true);
+            try
+            {
+                unique_resource_t ur2 = std::move(ur1);
+                BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
+            }
+            catch (...)
+            {
+                BOOST_TEST_EQ(n, 0);
+                throw;
+            }
+        }
+        catch (...)
+        {
+        }
+        BOOST_TEST_EQ(n, 0);
     }
 
     n = 0;
@@ -1059,8 +1116,19 @@ void check_deduction()
     n = 0;
     try
     {
+        // Not required to throw, but either way the deleter should not be called
         auto ur = boost::scope::make_unique_resource_checked(throw_on_copy_resource{ 0 }, throw_on_copy_resource{ 0 }, checking_resource_deleter< throw_on_copy_resource >(n));
-        BOOST_ERROR("An exception is expected to be thrown by throw_on_copy_resource");
+    }
+    catch (...)
+    {
+    }
+    BOOST_TEST_EQ(n, 0);
+
+    n = 0;
+    try
+    {
+        auto ur = boost::scope::make_unique_resource_checked(0, 0, throwing_resource_deleter< int >(n, true));
+        BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
     }
     catch (...)
     {

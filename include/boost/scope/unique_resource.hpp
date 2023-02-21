@@ -35,7 +35,26 @@
 
 namespace boost {
 namespace scope {
+
+struct default_resource_t {};
+
+//! Keyword representing default, unallocated resource argument
+BOOST_INLINE_VARIABLE constexpr default_resource_t default_resource = {};
+
 namespace detail {
+
+template< typename T >
+struct is_default_resource : public std::false_type { };
+template< >
+struct is_default_resource< default_resource_t > : public std::true_type { };
+template< >
+struct is_default_resource< const default_resource_t > : public std::true_type { };
+template< >
+struct is_default_resource< volatile default_resource_t > : public std::true_type { };
+template< >
+struct is_default_resource< const volatile default_resource_t > : public std::true_type { };
+template< typename T >
+struct is_default_resource< T& > : public is_default_resource< T >::type { };
 
 template< typename T >
 class ref_wrapper
@@ -138,8 +157,7 @@ public:
         typename R,
         typename = typename std::enable_if< std::is_constructible< internal_resource_type, R >::value >::type
     >
-    explicit resource_holder(R&& res)
-        noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
+    explicit resource_holder(R&& res) noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
         resource_base(static_cast< R&& >(res))
     {
     }
@@ -217,8 +235,7 @@ public:
         typename R,
         typename = typename std::enable_if< std::is_constructible< internal_resource_type, R >::value >::type
     >
-    explicit resource_holder(R&& res)
-        noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
+    explicit resource_holder(R&& res) noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
         resource_base(static_cast< R&& >(res))
     {
     }
@@ -289,6 +306,15 @@ public:
     >
     constexpr deleter_holder() noexcept(std::is_nothrow_default_constructible< internal_deleter_type >::value) :
         deleter_base()
+    {
+    }
+
+    template<
+        typename D,
+        typename = typename std::enable_if< std::is_constructible< internal_deleter_type, D >::value >::type
+    >
+    explicit deleter_holder(D&& del) noexcept(std::is_nothrow_constructible< internal_deleter_type, D >::value) :
+        deleter_base(static_cast< D&& >(del))
     {
     }
 
@@ -406,21 +432,40 @@ public:
     }
 
     template<
+        typename D,
+        typename = typename std::enable_if< detail::conjunction<
+            std::is_default_constructible< resource_holder >,
+            std::is_constructible< deleter_holder, D >
+        >::value >::type
+    >
+    explicit unique_resource_data(default_resource_t, D&& del)
+        noexcept(detail::conjunction<
+            std::is_nothrow_default_constructible< resource_holder >,
+            std::is_nothrow_constructible< deleter_holder, D >
+        >::value) :
+        resource_holder(),
+        deleter_holder(static_cast< D&& >(del)),
+        m_allocated(false)
+    {
+    }
+
+    template<
         typename R,
         typename D,
         typename = typename std::enable_if< detail::conjunction<
+            detail::negation< detail::is_default_resource< R > >,
             std::is_constructible< resource_holder, R, D, bool >,
             std::is_constructible< deleter_holder, D, resource_type&, bool >
         >::value >::type
     >
-    explicit unique_resource_data(R&& res, D&& del, bool allocated)
+    explicit unique_resource_data(R&& res, D&& del)
         noexcept(detail::conjunction<
             std::is_nothrow_constructible< resource_holder, R, D, bool >,
             std::is_nothrow_constructible< deleter_holder, D, resource_type&, bool >
         >::value) :
-        resource_holder(static_cast< R&& >(res), static_cast< D&& >(del), allocated),
-        deleter_holder(static_cast< D&& >(del), resource_holder::get(), allocated),
-        m_allocated(allocated)
+        resource_holder(static_cast< R&& >(res), static_cast< D&& >(del), true),
+        deleter_holder(static_cast< D&& >(del), resource_holder::get(), true),
+        m_allocated(true)
     {
     }
 
@@ -626,20 +671,37 @@ public:
     }
 
     template<
+        typename D,
+        typename = typename std::enable_if< detail::conjunction<
+            std::is_default_constructible< resource_holder >,
+            std::is_constructible< deleter_holder, D >
+        >::value >::type
+    >
+    explicit unique_resource_data(default_resource_t, D&& del)
+        noexcept(detail::conjunction<
+            std::is_nothrow_default_constructible< resource_holder >,
+            std::is_nothrow_constructible< deleter_holder, D >
+        >::value) :
+        resource_holder(),
+        deleter_holder(static_cast< D&& >(del))
+    {
+    }
+
+    template<
         typename R,
         typename D,
         typename = typename std::enable_if< detail::conjunction<
+            detail::negation< detail::is_default_resource< R > >,
             std::is_constructible< resource_holder, R, D, bool >,
             std::is_constructible< deleter_holder, D, resource_type&, bool >
         >::value >::type
     >
-    explicit unique_resource_data(R&& res, D&& del, bool allocated)
+    explicit unique_resource_data(R&& res, D&& del)
         noexcept(detail::conjunction<
             std::is_nothrow_constructible< resource_holder, R, D, bool >,
             std::is_nothrow_constructible< deleter_holder, D, resource_type&, bool >
         >::value) :
-        unique_resource_data(static_cast< R&& >(res), static_cast< D&& >(del), allocated,
-            !has_deallocated_state< resource_type, traits_type >::value || traits_type::is_allocated(static_cast< R&& >(res)))
+        unique_resource_data(static_cast< R&& >(res), static_cast< D&& >(del), traits_type::is_allocated(static_cast< R&& >(res)))
     {
     }
 
@@ -759,13 +821,13 @@ private:
             std::is_constructible< deleter_holder, D, resource_type&, bool >
         >::value >::type
     >
-    explicit unique_resource_data(R&& res, D&& del, bool, bool res_allocated)
+    explicit unique_resource_data(R&& res, D&& del, bool allocated)
         noexcept(detail::conjunction<
             std::is_nothrow_constructible< resource_holder, R, D, bool >,
             std::is_nothrow_constructible< deleter_holder, D, resource_type&, bool >
         >::value) :
-        resource_holder(static_cast< R&& >(res), static_cast< D&& >(del), res_allocated),
-        deleter_holder(static_cast< D&& >(del), resource_holder::get(), res_allocated)
+        resource_holder(static_cast< R&& >(res), static_cast< D&& >(del), allocated),
+        deleter_holder(static_cast< D&& >(del), resource_holder::get(), allocated)
     {
     }
 
@@ -870,8 +932,6 @@ struct dereference_traits< T, true >
     static constexpr bool is_noexcept = noexcept(*std::declval< T const& >());
 };
 
-struct unique_resource_access;
-
 } // namespace detail
 
 /*!
@@ -880,8 +940,6 @@ struct unique_resource_access;
 template< typename Resource, typename Deleter, typename Traits >
 class unique_resource
 {
-    friend struct detail::unique_resource_access;
-
 public:
     //! Resource type
     typedef Resource resource_type;
@@ -907,12 +965,33 @@ public:
     {
     }
 
+    //! Constructs an inactive unique resource guard with the given deleter.
+    template<
+        typename D,
+        typename = typename std::enable_if<
+            std::is_constructible< data, default_resource_t, typename detail::move_or_copy_construct_ref< D, deleter_type >::type >::value
+        >::type
+    >
+    unique_resource(default_resource_t res, D&& del)
+        noexcept(std::is_nothrow_constructible<
+            data,
+            default_resource_t,
+            typename detail::move_or_copy_construct_ref< D, deleter_type >::type
+        >::value) :
+        m_data
+        (
+            res,
+            static_cast< typename detail::move_or_copy_construct_ref< D, deleter_type >::type >(del)
+        )
+    {
+    }
+
     //! Constructs a unique resource guard with the given resource and a default-constructed deleter.
     template<
         typename R,
         typename = typename std::enable_if< detail::conjunction<
             std::is_nothrow_default_constructible< deleter_type >,
-            std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< deleter_type >::type, bool >,
+            std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< deleter_type >::type >,
             detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
         >::value >::type
     >
@@ -920,14 +999,12 @@ public:
         noexcept(std::is_nothrow_constructible<
             data,
             typename detail::move_or_copy_construct_ref< R, resource_type >::type,
-            typename detail::move_or_copy_construct_ref< deleter_type >::type,
-            bool
+            typename detail::move_or_copy_construct_ref< deleter_type >::type
         >::value) :
         m_data
         (
             static_cast< typename detail::move_or_copy_construct_ref< R, resource_type >::type >(res),
-            static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(deleter_type()),
-            true
+            static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(deleter_type())
         )
     {
     }
@@ -937,7 +1014,7 @@ public:
         typename R,
         typename D,
         typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< D, deleter_type >::type, bool >,
+            std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< D, deleter_type >::type >,
             detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
         >::value >::type
     >
@@ -945,14 +1022,12 @@ public:
         noexcept(std::is_nothrow_constructible<
             data,
             typename detail::move_or_copy_construct_ref< R, resource_type >::type,
-            typename detail::move_or_copy_construct_ref< D, deleter_type >::type,
-            bool
+            typename detail::move_or_copy_construct_ref< D, deleter_type >::type
         >::value) :
         m_data
         (
             static_cast< typename detail::move_or_copy_construct_ref< R, resource_type >::type >(res),
-            static_cast< typename detail::move_or_copy_construct_ref< D, deleter_type >::type >(del),
-            true
+            static_cast< typename detail::move_or_copy_construct_ref< D, deleter_type >::type >(del)
         )
     {
     }
@@ -1066,31 +1141,6 @@ public:
     }
 
 private:
-    //! Constructs a unique resource guard with the given resource and deleter.
-    template<
-        typename R,
-        typename D,
-        typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< D, deleter_type >::type, bool >,
-            detail::negation< detail::disjunction< std::is_reference< resource_type >, std::is_reference< R > > > // prevent binding lvalue-reference resource to an rvalue
-        >::value >::type
-    >
-    unique_resource(R&& res, D&& del, bool allocated)
-        noexcept(std::is_nothrow_constructible<
-            data,
-            typename detail::move_or_copy_construct_ref< R, resource_type >::type,
-            typename detail::move_or_copy_construct_ref< D, deleter_type >::type,
-            bool
-        >::value) :
-        m_data
-        (
-            static_cast< typename detail::move_or_copy_construct_ref< R, resource_type >::type >(res),
-            static_cast< typename detail::move_or_copy_construct_ref< D, deleter_type >::type >(del),
-            allocated
-        )
-    {
-    }
-
     //! Assigns new resource to the resource guard
     template< typename R >
     void assign_resource(R&& res, std::true_type) noexcept
@@ -1115,28 +1165,16 @@ private:
 };
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
-template< typename Resource, typename Deleter >
-unique_resource(Resource, Deleter) -> unique_resource< Resource, Deleter >;
+template<
+    typename Resource,
+    typename Deleter,
+    typename = typename std::enable_if< !detail::is_default_resource< Resource >::value >::type
+>
+unique_resource(Resource&&, Deleter&&) -> unique_resource<
+    typename std::remove_cv< typename std::remove_reference< Resource >::type >::type,
+    typename std::remove_cv< typename std::remove_reference< Deleter >::type >::type
+>;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
-
-namespace detail {
-
-struct unique_resource_access
-{
-    template< typename Resource, typename Deleter, typename Invalid >
-    static unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >
-    make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& del)
-        noexcept(detail::conjunction<
-            std::is_nothrow_constructible< typename std::decay< Resource >::type, typename detail::move_or_copy_construct_ref< Resource, typename std::decay< Resource >::type >::type >,
-            std::is_nothrow_constructible< typename std::decay< Deleter >::type, typename detail::move_or_copy_construct_ref< Deleter, typename std::decay< Deleter >::type >::type >
-        >::value)
-    {
-        return unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >(
-            static_cast< Resource&& >(res), static_cast< Deleter&& >(del), res == invalid ? false : true);
-    }
-};
-
-} // namespace detail
 
 /*!
  * \brief Checks if the resource is valid and creates a \c unique_resource wrapper.
@@ -1158,7 +1196,11 @@ make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& d
         std::is_nothrow_constructible< typename std::decay< Deleter >::type, typename detail::move_or_copy_construct_ref< Deleter, typename std::decay< Deleter >::type >::type >
     >::value)
 {
-    return detail::unique_resource_access::make_unique_resource_checked(static_cast< Resource&& >(res), invalid, static_cast< Deleter&& >(del));
+    typedef unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type > unique_resource_t;
+    if (!(res == invalid))
+        return unique_resource_t(static_cast< Resource&& >(res), static_cast< Deleter&& >(del));
+    else
+        return unique_resource_t(default_resource_t(), static_cast< Deleter&& >(del));
 }
 
 } // namespace scope
