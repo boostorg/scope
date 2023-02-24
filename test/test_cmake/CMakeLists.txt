@@ -1,7 +1,8 @@
 # Copyright 2023 Andrey Semashev
 #
 # Distributed under the Boost Software License, Version 1.0.
-# See accompanying file LICENSE_1_0.txt or copy at https://www.boost.org/LICENSE_1_0.txt
+# (See accompanying file LICENSE_1_0.txt or copy at
+# https://www.boost.org/LICENSE_1_0.txt)
 #
 # NOTE: This does NOT run the unit tests for Boost.Scope.
 #       It only tests if the CMakeLists.txt file in it's root works as expected.
