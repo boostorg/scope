@@ -1446,7 +1446,7 @@ public:
     /*!
      * \brief Swaps two unique resource wrappers.
      *
-     * <b>Requires:</b> \c Resource and \c Deletter are swappable. At least one of \c Resource and \c Deletter
+     * <b>Requires:</b> \c Resource and \c Deleter are swappable. At least one of \c Resource and \c Deleter
      *                  is nothrow swappable.
      *
      * <b>Effects:</b> Swaps the resource objects and deleter objects stored in <tt>*this</tt> and <tt>that</tt>
