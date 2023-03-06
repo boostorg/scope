@@ -15,10 +15,10 @@
 #define BOOST_SCOPE_UNIQUE_RESOURCE_HPP_INCLUDED_
 
 #include <type_traits>
-#include <boost/config.hpp>
 #include <boost/core/swap.hpp>
 #include <boost/core/addressof.hpp>
 #include <boost/scope/unique_resource_fwd.hpp>
+#include <boost/scope/detail/config.hpp>
 #include <boost/scope/detail/compact_storage.hpp>
 #include <boost/scope/detail/move_or_copy_assign_ref.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
@@ -542,14 +542,28 @@ public:
         m_allocated = true;
     }
 
-    template< bool Requires = detail::conjunction< detail::is_swappable< internal_resource_type >, detail::is_swappable< internal_deleter_type > >::value >
+    template<
+        bool Requires = detail::conjunction<
+            detail::is_swappable< internal_resource_type >,
+            detail::is_swappable< internal_deleter_type >,
+            detail::disjunction<
+                detail::is_nothrow_swappable< internal_resource_type >,
+                detail::is_nothrow_swappable< internal_deleter_type >
+            >
+        >::value
+    >
     typename std::enable_if< Requires >::type swap(unique_resource_data& that)
         noexcept(detail::conjunction< detail::is_nothrow_swappable< internal_resource_type >, detail::is_nothrow_swappable< internal_deleter_type > >::value)
     {
-        swap_impl(that, std::integral_constant< bool, detail::conjunction<
-            detail::is_nothrow_swappable< internal_resource_type >,
-            detail::is_nothrow_swappable< internal_deleter_type >
-        >::value >());
+        swap_impl
+        (
+            that,
+            std::integral_constant< bool, detail::is_nothrow_swappable< internal_resource_type >::value >(),
+            std::integral_constant< bool, detail::conjunction<
+                detail::is_nothrow_swappable< internal_resource_type >,
+                detail::is_nothrow_swappable< internal_deleter_type >
+            >::value >()
+        );
     }
 
 private:
@@ -599,7 +613,7 @@ private:
         that.m_allocated = false;
     }
 
-    void swap_impl(unique_resource_data& that, std::true_type) noexcept
+    void swap_impl(unique_resource_data& that, std::true_type, std::true_type) noexcept
     {
         boost::swap(get_internal_resource(), that.get_internal_resource());
         boost::swap(get_internal_deleter(), that.get_internal_deleter());
@@ -609,7 +623,25 @@ private:
         that.m_allocated = allocated;
     }
 
-    void swap_impl(unique_resource_data& that, std::false_type)
+    void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
+    {
+        boost::swap(get_internal_resource(), that.get_internal_resource());
+        try
+        {
+            boost::swap(get_internal_deleter(), that.get_internal_deleter());
+        }
+        catch (...)
+        {
+            boost::swap(get_internal_resource(), that.get_internal_resource());
+            throw;
+        }
+
+        const bool allocated = m_allocated;
+        m_allocated = that.m_allocated;
+        that.m_allocated = allocated;
+    }
+
+    void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
     {
         boost::swap(get_internal_deleter(), that.get_internal_deleter());
         try
@@ -777,14 +809,28 @@ public:
         get_internal_resource() = static_cast< R&& >(res);
     }
 
-    template< bool Requires = detail::conjunction< detail::is_swappable< internal_resource_type >, detail::is_swappable< internal_deleter_type > >::value >
+    template<
+        bool Requires = detail::conjunction<
+            detail::is_swappable< internal_resource_type >,
+            detail::is_swappable< internal_deleter_type >,
+            detail::disjunction<
+                detail::is_nothrow_swappable< internal_resource_type >,
+                detail::is_nothrow_swappable< internal_deleter_type >
+            >
+        >::value
+    >
     typename std::enable_if< Requires >::type swap(unique_resource_data& that)
         noexcept(detail::conjunction< detail::is_nothrow_swappable< internal_resource_type >, detail::is_nothrow_swappable< internal_deleter_type > >::value)
     {
-        swap_impl(that, std::integral_constant< bool, detail::conjunction<
-            detail::is_nothrow_swappable< internal_resource_type >,
-            detail::is_nothrow_swappable< internal_deleter_type >
-        >::value >());
+        swap_impl
+        (
+            that,
+            std::integral_constant< bool, detail::is_nothrow_swappable< internal_resource_type >::value >(),
+            std::integral_constant< bool, detail::conjunction<
+                detail::is_nothrow_swappable< internal_resource_type >,
+                detail::is_nothrow_swappable< internal_deleter_type >
+            >::value >()
+        );
     }
 
 private:
@@ -848,13 +894,27 @@ private:
         that.set_deallocated();
     }
 
-    void swap_impl(unique_resource_data& that, std::true_type) noexcept
+    void swap_impl(unique_resource_data& that, std::true_type, std::true_type) noexcept
     {
         boost::swap(get_internal_resource(), that.get_internal_resource());
         boost::swap(get_internal_deleter(), that.get_internal_deleter());
     }
 
-    void swap_impl(unique_resource_data& that, std::false_type)
+    void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
+    {
+        boost::swap(get_internal_resource(), that.get_internal_resource());
+        try
+        {
+            boost::swap(get_internal_deleter(), that.get_internal_deleter());
+        }
+        catch (...)
+        {
+            boost::swap(get_internal_resource(), that.get_internal_resource());
+            throw;
+        }
+    }
+
+    void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
     {
         boost::swap(get_internal_deleter(), that.get_internal_deleter());
         try
@@ -936,6 +996,55 @@ struct dereference_traits< T, true >
 
 /*!
  * \brief RAII wrapper for automatically reclaiming arbitrary resources.
+ *
+ * A \c unique_resource object exclusively owns wrapped resource and invokes
+ * the deleter function object on it on destruction. The wrapped resource can have
+ * any type that is:
+ *
+ * \li Move-constructible, where the move constructor doesn't throw, or
+ * \li Copy-constructible, or
+ * \li A reference to one of the above.
+ *
+ * The deleter must be a function object type that is callable on an lvalue
+ * of the resource type. The deleter must be copy-constructible.
+ *
+ * An optional resource traits template parameter may be specified. Resource
+ * traits can be used to optimize \c unique_resource implementation when
+ * the following conditions are met:
+ *
+ * \li There is at least one value of the resource type that is considered
+ *     unallocated (that is, no allocated resource shall be equal to one of
+ *     the unallocated resource values). The unallocated resource values need not
+ *     be deallocated using the deleter.
+ * \li One of the unallocated resource values can be considered the default.
+ *     Constructing the default resource value and assigning it to a resource
+ *     object (whether allocated or not) shall not throw exceptions.
+ * \li Resource objects can be tested for being unallocated. Such a test shall
+ *     not throw exceptions.
+ *
+ * If specified, the resource traits must be a class that has the following
+ * public static members:
+ *
+ * \li <tt>Resource make_default() noexcept</tt> - must return the default
+ *     resource value.
+ * \li <tt>bool is_allocated(Resource const& res) noexcept</tt> - must
+ *     return \c true if \c res is not one of the unallocated resource values
+ *     and \c false otherwise.
+ *
+ * Note that <tt>is_allocated(make_default())</tt> must always return \c false.
+ *
+ * When conforming resource traits are specified, \c unique_resource will be able
+ * to avoid storing additional indication of whether the owned resource object
+ * needs to be deallocated with the deleter on destruction. It will use the default
+ * resource value to initialize the owned resource object when \c unique_resource
+ * is not in the allocated state. Additionally, it will be possible to construct
+ * \c unique_resource with unallocated resource values, which will create
+ * \c unique_resource objects in deallocated state (the deleter will not be called
+ * on unallocated resource values).
+ *
+ * \tparam Resource Resource type.
+ * \tparam Deleter Resource deleter function object type.
+ * \tparam Traits Resource traits type.
  */
 template< typename Resource, typename Deleter, typename Traits >
 class unique_resource
@@ -948,6 +1057,7 @@ public:
     //! Resource traits
     typedef Traits traits_type;
 
+//! \cond
 private:
     typedef detail::unique_resource_data< resource_type, deleter_type, traits_type > data;
     typedef typename data::internal_resource_type internal_resource_type;
@@ -955,29 +1065,62 @@ private:
 
     data m_data;
 
+//! \endcond
 public:
-    //! Constructs an inactive unique resource guard.
+    /*!
+     * \brief Constructs an unallocated unique resource guard.
+     *
+     * <b>Requires:</b> Default \c Resource value can be constructed and \c Deleter is default-constructible.
+     *
+     * <b>Effects:</b> Initializes the \c Resource object with the default resource value. Default-constructs
+     *                 the \c Deleter object.
+     *
+     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     *
+     * \post <tt>this->allocated() == false</tt>
+     */
+    //! \cond
     template<
         bool Requires = std::is_default_constructible< data >::value,
         typename = typename std::enable_if< Requires >::type
     >
-    constexpr unique_resource() noexcept(std::is_nothrow_default_constructible< data >::value)
+    //! \endcond
+    constexpr unique_resource() noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(std::is_nothrow_default_constructible< data >::value))
     {
     }
 
-    //! Constructs an inactive unique resource guard with the given deleter.
+    /*!
+     * \brief Constructs an unallocated unique resource guard with the given deleter.
+     *
+     * <b>Requires:</b> Default \c Resource value can be constructed and \c Deleter is constructible from \a del.
+     *
+     * <b>Effects:</b> Initializes the \c Resource value with the default resource value. If \c Deleter is nothrow
+     *                 constructible from <tt>D&&</tt> then constructs \c Deleter from <tt>std::forward< D >(del)</tt>,
+     *                 otherwise constructs from <tt>del</tt>.
+     *
+     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     *
+     * \param res A tag argument indicating default resource value.
+     * \param del Resource deleter function object.
+     *
+     * \post <tt>this->allocated() == false</tt>
+     */
     template<
-        typename D,
-        typename = typename std::enable_if<
+        typename D
+        //! \cond
+        , typename = typename std::enable_if<
             std::is_constructible< data, default_resource_t, typename detail::move_or_copy_construct_ref< D, deleter_type >::type >::value
         >::type
+        //! \endcond
     >
     unique_resource(default_resource_t res, D&& del)
-        noexcept(std::is_nothrow_constructible<
-            data,
-            default_resource_t,
-            typename detail::move_or_copy_construct_ref< D, deleter_type >::type
-        >::value) :
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
+            std::is_nothrow_constructible<
+                data,
+                default_resource_t,
+                typename detail::move_or_copy_construct_ref< D, deleter_type >::type
+            >::value
+        )) :
         m_data
         (
             res,
@@ -986,21 +1129,36 @@ public:
     {
     }
 
-    //! Constructs a unique resource guard with the given resource and a default-constructed deleter.
+    /*!
+     * \brief Constructs a unique resource guard with the given resource and a default-constructed deleter.
+     *
+     * <b>Requires:</b> \c Resource is constructible from \a res and \c Deleter is default-constructible.
+     *
+     * <b>Effects:</b> Constructs the unique resource object as if by calling
+     *                 <tt>unique_resource(std::forward< R >(res), Deleter())</tt>.
+     *
+     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     *
+     * \param res Resource object.
+     */
     template<
-        typename R,
-        typename = typename std::enable_if< detail::conjunction<
+        typename R
+        //! \cond
+        , typename = typename std::enable_if< detail::conjunction<
             std::is_nothrow_default_constructible< deleter_type >,
             std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< deleter_type >::type >,
             detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
         >::value >::type
+        //! \endcond
     >
     explicit unique_resource(R&& res)
-        noexcept(std::is_nothrow_constructible<
-            data,
-            typename detail::move_or_copy_construct_ref< R, resource_type >::type,
-            typename detail::move_or_copy_construct_ref< deleter_type >::type
-        >::value) :
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
+            std::is_nothrow_constructible<
+                data,
+                typename detail::move_or_copy_construct_ref< R, resource_type >::type,
+                typename detail::move_or_copy_construct_ref< deleter_type >::type
+            >::value
+        )) :
         m_data
         (
             static_cast< typename detail::move_or_copy_construct_ref< R, resource_type >::type >(res),
@@ -1009,21 +1167,46 @@ public:
     {
     }
 
-    //! Constructs a unique resource guard with the given resource and deleter.
+    /*!
+     * \brief Constructs a unique resource guard with the given resource and deleter.
+     *
+     * <b>Requires:</b> \c Resource is constructible from \a res and \c Deleter is constructible from \a del.
+     *
+     * <b>Effects:</b> If \c Resource is nothrow constructible from <tt>R&&</tt> then constructs \c Resource
+     *                 from <tt>std::forward< R >(res)</tt>, otherwise constructs from <tt>res</tt>. If \c Deleter
+     *                 is nothrow constructible from <tt>D&&</tt> then constructs \c Deleter from
+     *                 <tt>std::forward< D >(del)</tt>, otherwise constructs from <tt>del</tt>.
+     *
+     *                 If construction of \c Resource or \c Deleter throws and \a res is not an unallocated resource
+     *                 value, invokes \a del on \a res (if \c Resource construction failed) or the constructed
+     *                 \c Resource object (if \c Deleter construction failed).
+     *
+     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     *
+     * \param res Resource object.
+     * \param del Resource deleter function object.
+     *
+     * \post If \a res is an unallocated resource value then <tt>this->allocated() == false</tt>, otherwise
+     *       <tt>this->allocated() == true</tt>.
+     */
     template<
         typename R,
-        typename D,
-        typename = typename std::enable_if< detail::conjunction<
+        typename D
+        //! \cond
+        , typename = typename std::enable_if< detail::conjunction<
             std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< D, deleter_type >::type >,
             detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
         >::value >::type
+        //! \endcond
     >
     unique_resource(R&& res, D&& del)
-        noexcept(std::is_nothrow_constructible<
-            data,
-            typename detail::move_or_copy_construct_ref< R, resource_type >::type,
-            typename detail::move_or_copy_construct_ref< D, deleter_type >::type
-        >::value) :
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
+            std::is_nothrow_constructible<
+                data,
+                typename detail::move_or_copy_construct_ref< R, resource_type >::type,
+                typename detail::move_or_copy_construct_ref< D, deleter_type >::type
+            >::value
+        )) :
         m_data
         (
             static_cast< typename detail::move_or_copy_construct_ref< R, resource_type >::type >(res),
@@ -1035,55 +1218,134 @@ public:
     unique_resource(unique_resource const&) = delete;
     unique_resource& operator= (unique_resource const&) = delete;
 
+    /*!
+     * \brief Move-constructs a unique resource guard.
+     *
+     * <b>Requires:</b> \c Resource and \c Deleter are move-constructible.
+     *
+     * <b>Effects:</b> If \c Resource is nothrow move-constructible then move-constructs \c Resource,
+     *                 otherwise copy-constructs. If \c Deleter is nothrow move-constructible then move-constructs
+     *                 \c Deleter, otherwise copy-constructs. Deactivates the moved-from unique resource object.
+     *
+     *                 If <tt>that.allocated()</tt> was \c true prior to the operation and constructing \c Deleter
+     *                 throws after \c Resource is move-constructed, invokes the original deleter stored in \a that
+     *                 on the resource and deactivates \a that before returning with the exception. In other
+     *                 exceptional cases \a that is left intact.
+     *
+     * \note This logic ensures that the resource is not leaked in case of an exception.
+     *
+     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     *
+     * \param that Move source.
+     *
+     * \post Let \c allocated be equal to <tt>that.allocated()</tt> prior to the operation. Then
+     *       <tt>this->allocated() == allocated</tt> and <tt>that.allocated() == false</tt>.
+     */
+    //! \cond
     template<
         bool Requires = std::is_move_constructible< data >::value,
         typename = typename std::enable_if< Requires >::type
     >
-    unique_resource(unique_resource&& that) noexcept(std::is_nothrow_move_constructible< data >::value) :
+    //! \endcond
+    unique_resource(unique_resource&& that) noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(std::is_nothrow_move_constructible< data >::value)) :
         m_data(static_cast< data&& >(that.m_data))
     {
     }
 
+    /*!
+     * \brief Move-assigns a unique resource guard.
+     *
+     * <b>Requires:</b> \c Resource and \c Deleter are move-assignable.
+     *
+     * <b>Effects:</b> Calls <tt>this->reset()</tt>. Then, if \c Deleter is nothrow move-assignable, move-assigns
+     *                 the \c Deleter object first and the \c Resource object next. Otherwise, move-assigns
+     *                 the objects in reverse order. Lastly, deactivates the moved-from unique resource object.
+     *
+     *                 If an exception is thrown, \a that is left intact.
+     *
+     * \note The different orders of assignment ensure that in case of an exception the resource is not leaked
+     *       and ramains owned by the move source.
+     *
+     * <b>Throws:</b> Nothing, unless assignment of \c Resource or \c Deleter throws.
+     *
+     * \param that Move source.
+     *
+     * \post Let \c allocated be equal to <tt>that.allocated()</tt> prior to the operation. Then
+     *       <tt>this->allocated() == allocated</tt> and <tt>that.allocated() == false</tt>.
+     */
+#if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = std::is_move_assignable< data >::value >
-    typename std::enable_if< Requires, unique_resource& >::type operator= (unique_resource&& that)
-        noexcept(std::is_nothrow_move_assignable< data >::value)
+    typename std::enable_if< Requires, unique_resource& >::type
+#else
+    unique_resource&
+#endif
+    operator= (unique_resource&& that)
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(std::is_nothrow_move_assignable< data >::value))
     {
         reset();
         m_data = static_cast< data&& >(that.m_data);
         return *this;
     }
 
-    //! Invokes <tt>reset()</tt> and destroys the resource.
+    /*!
+     * \brief Invokes <tt>reset()</tt> and destroys the resource.
+     *
+     * <b>Throws:</b> Nothing, unless invoking the deleter throws.
+     */
     ~unique_resource() noexcept(noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())))
     {
         reset();
     }
 
-    //! Returns \c true if the resource is allocated and to be reclaimed by calling the deleter, otherwise \c false.
+    /*!
+     * \brief Returns \c true if the resource is allocated and to be reclaimed by the deleter, otherwise \c false.
+     *
+     * <b>Throws:</b> Nothing.
+     */
     bool allocated() const noexcept
     {
         return m_data.is_allocated();
     }
 
-    //! Returns a reference to the resource.
+    /*!
+     * \brief Returns a reference to the resource object.
+     *
+     * <b>Throws:</b> Nothing.
+     */
     resource_type const& get() const noexcept
     {
         return m_data.get_resource();
     }
 
-    //! Returns a reference to the deleter.
+    /*!
+     * \brief Returns a reference to the deleter object.
+     *
+     * <b>Throws:</b> Nothing.
+     */
     deleter_type const& get_deleter() const noexcept
     {
         return m_data.get_deleter();
     }
 
-    //! Marks the resource as deallocated. Does not call the deleter if the resource was previously allocated.
+    /*!
+     * \brief Marks the resource as unallocated. Does not call the deleter if the resource was previously allocated.
+     *
+     * <b>Throws:</b> Nothing.
+     *
+     * \post <tt>this->allocated() == false</tt>
+     */
     void release() noexcept
     {
         m_data.set_deallocated();
     }
 
-    //! If the resource is allocated, calls the deleter function on it and marks the resource as deallocated.
+    /*!
+     * \brief If the resource is allocated, calls the deleter function on it and marks the resource as unallocated.
+     *
+     * <b>Throws:</b> Nothing, unless invoking the deleter throws.
+     *
+     * \post <tt>this->allocated() == false</tt>
+     */
     void reset() noexcept(noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())))
     {
         if (BOOST_LIKELY(m_data.is_allocated()))
@@ -1093,67 +1355,154 @@ public:
         }
     }
 
-    //! If the resource is allocated, calls the deleter function on it and marks the resource as deallocated.
+    /*!
+     * \brief Assigns a new resource object to the unique resource wrapper.
+     *
+     * <b>Effects:</b> Calls <tt>this->reset()</tt>. Then, if \c Resource is nothrow assignable from <tt>R&&</tt>,
+     *                 assigns <tt>std::forward< R >(res)</tt> to the stored resource object, otherwise assigns
+     *                 <tt>res</tt>.
+     *
+     *                 If \a res is not an unallocated resource value and an exception is thrown during the operation,
+     *                 invokes the stored deleter on \a res before returning with the exception.
+     *
+     * <b>Throws:</b> Nothing, unless invoking the deleter throws.
+     *
+     * \param res Resource object to assign.
+     *
+     * \post <tt>this->allocated() == false</tt>
+     */
     template< typename R >
+#if !defined(BOOST_SCOPE_DOXYGEN)
     typename std::enable_if< detail::conjunction<
         std::is_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >,
         detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
-    >::value >::type reset(R&& res)
-        noexcept(detail::conjunction<
-            std::integral_constant< bool, noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())) >,
-            std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >
-        >::value)
+    >::value >::type
+#else
+    void
+#endif
+    reset(R&& res)
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
+            detail::conjunction<
+                std::integral_constant< bool, noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())) >,
+                std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >
+            >::value
+        ))
     {
-        reset();
-        assign_resource
+        reset_impl
         (
             static_cast< typename detail::move_or_copy_assign_ref< R, resource_type >::type >(res),
-            typename std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >::type()
+            typename detail::conjunction<
+                std::integral_constant< bool, noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())) >,
+                std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >
+            >::type()
         );
     }
 
+    /*!
+     * \brief Invokes indirection on the resource object.
+     *
+     * <b>Requires:</b> \c Resource is dereferenceable.
+     *
+     * <b>Effects:</b> Returns a reference to the resource object as if by calling <tt>get()</tt>.
+     *
+     * \note If \c Resource is not a pointer type, the compiler will invoke its <tt>operator-></tt>.
+     *       Such call sequence will continue until a pointer is obtained.
+     *
+     * <b>Throws:</tt> Nothing. Note that any implicit subsequent calls to other <tt>operator-></tt>
+     *                 functions that are caused by this call may have different throw conditions.
+     */
+#if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = detail::is_dereferenceable< resource_type >::value >
-    typename std::enable_if< Requires, resource_type const& >::type operator-> () const noexcept
+    typename std::enable_if< Requires, resource_type const& >::type
+#else
+    resource_type const&
+#endif
+    operator-> () const noexcept
     {
         return get();
     }
 
+    /*!
+     * \brief Dereferences the resource object.
+     *
+     * <b>Requires:</b> \c Resource is dereferenceable.
+     *
+     * <b>Effects:</b> Returns the result of dereferencing the resource object as if by calling <tt>*get()</tt>.
+     *
+     * <b>Throws:</tt> Nothing, unless dereferencing the resource object throws.
+     */
+#if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = detail::is_dereferenceable< resource_type >::value >
     typename detail::dereference_traits< resource_type, Requires >::result_type
-    operator* () const noexcept(detail::dereference_traits< resource_type, Requires >::is_noexcept)
+#else
+    auto
+#endif
+    operator* () const
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(detail::dereference_traits< resource_type, Requires >::is_noexcept))
     {
         return *get();
     }
 
-    //! Swaps two unique resource wrappers
+    /*!
+     * \brief Swaps two unique resource wrappers.
+     *
+     * <b>Requires:</b> \c Resource and \c Deletter are swappable. At least one of \c Resource and \c Deletter
+     *                  is nothrow swappable.
+     *
+     * <b>Effects:</b> Swaps the resource objects and deleter objects stored in <tt>*this</tt> and <tt>that</tt>
+     *                 as if by calling unqualified <tt>swap</tt> in a context where <tt>std::swap</tt> is
+     *                 found by overload resolution.
+     *
+     * <b>Throws:</tt> Nothing, unless swapping the resource objects or deleters throw.
+     *
+     * \param that Unique resource wrapper to swap with.
+     */
+#if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = detail::is_swappable< data >::value >
-    typename std::enable_if< Requires >::type swap(unique_resource& that) noexcept(detail::is_nothrow_swappable< data >::value)
+    typename std::enable_if< Requires >::type
+#else
+    void
+#endif
+    swap(unique_resource& that)
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(detail::is_nothrow_swappable< data >::value))
     {
         m_data.swap(that.m_data);
     }
 
-    //! Swaps two unique resource wrappers
+    /*!
+     * \brief Swaps two unique resource wrappers.
+     *
+     * <b>Effects:</b> As if <tt>left.swap(right)</tt>.
+     */
+#if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = detail::is_swappable< data >::value >
     friend typename std::enable_if< Requires >::type
-    swap(unique_resource& left, unique_resource& right) noexcept(detail::is_nothrow_swappable< data >::value)
+#else
+    friend void
+#endif
+    swap(unique_resource& left, unique_resource& right)
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(detail::is_nothrow_swappable< data >::value))
     {
         left.swap(right);
     }
 
+//! \cond
 private:
-    //! Assigns new resource to the resource guard
+    //! Assigns a new resource object to the unique resource wrapper.
     template< typename R >
-    void assign_resource(R&& res, std::true_type) noexcept
+    void reset_impl(R&& res, std::true_type) noexcept
     {
+        reset();
         m_data.assign_resource(static_cast< R&& >(res));
     }
 
-    //! Assigns new resource to the resource guard
+    //! Assigns a new resource object to the unique resource wrapper.
     template< typename R >
-    void assign_resource(R&& res, std::false_type)
+    void reset_impl(R&& res, std::false_type)
     {
         try
         {
+            reset();
             m_data.assign_resource(static_cast< R&& >(res));
         }
         catch (...)
@@ -1162,6 +1511,7 @@ private:
             throw;
         }
     }
+//! \endcond
 };
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
@@ -1179,22 +1529,27 @@ unique_resource(Resource&&, Deleter&&) -> unique_resource<
 /*!
  * \brief Checks if the resource is valid and creates a \c unique_resource wrapper.
  *
- * If the resource \a res is not equal to \a invalid, creates a unique resource wrapper
- * that is in allocated state. Otherwise creates a unique resource wrapper in deallocated state.
+ * <b>Effects:</b> If the resource \a res is not equal to \a invalid, creates a unique resource wrapper
+ *                 that is in allocated state and owns \a res. Otherwise creates a unique resource wrapper
+ *                 in deallocated state.
+ *
+ * \note This function does not call \a del if \a res is equal to \a invalid.
+ *
+ * <b>Throws:</b> Nothing, unless \c unique_resource constructor throws.
  *
  * \param res Resource to wrap.
  * \param invalid An invalid value for the resource.
- * \param del A deleter to invoke on the resource to reclaim it.
- *
- * \note This function does not call \a del if \a res is equal to \a invalid.
+ * \param del A deleter to invoke on the resource to free it.
  */
 template< typename Resource, typename Deleter, typename Invalid >
 inline unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >
 make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& del)
-    noexcept(detail::conjunction<
-        std::is_nothrow_constructible< typename std::decay< Resource >::type, typename detail::move_or_copy_construct_ref< Resource, typename std::decay< Resource >::type >::type >,
-        std::is_nothrow_constructible< typename std::decay< Deleter >::type, typename detail::move_or_copy_construct_ref< Deleter, typename std::decay< Deleter >::type >::type >
-    >::value)
+    noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
+        detail::conjunction<
+            std::is_nothrow_constructible< typename std::decay< Resource >::type, typename detail::move_or_copy_construct_ref< Resource, typename std::decay< Resource >::type >::type >,
+            std::is_nothrow_constructible< typename std::decay< Deleter >::type, typename detail::move_or_copy_construct_ref< Deleter, typename std::decay< Deleter >::type >::type >
+        >::value
+    ))
 {
     typedef unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type > unique_resource_t;
     if (!(res == invalid))

@@ -15,7 +15,7 @@
 #define BOOST_SCOPE_DETAIL_MOVE_OR_COPY_ASSIGN_REF_HPP_INCLUDED_
 
 #include <type_traits>
-#include <boost/config.hpp>
+#include <boost/scope/detail/config.hpp>
 #include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE

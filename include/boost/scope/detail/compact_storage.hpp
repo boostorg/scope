@@ -16,7 +16,7 @@
 #define BOOST_SCOPE_DETAIL_COMPACT_STORAGE_HPP_INCLUDED_
 
 #include <type_traits>
-#include <boost/config.hpp>
+#include <boost/scope/detail/config.hpp>
 #include <boost/scope/detail/type_traits/is_final.hpp>
 #include <boost/scope/detail/type_traits/negation.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>

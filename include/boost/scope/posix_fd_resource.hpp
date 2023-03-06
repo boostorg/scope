@@ -15,7 +15,7 @@
 #ifndef BOOST_SCOPE_POSIX_FD_RESOURCE_HPP_INCLUDED_
 #define BOOST_SCOPE_POSIX_FD_RESOURCE_HPP_INCLUDED_
 
-#include <boost/config.hpp>
+#include <boost/scope/detail/config.hpp>
 
 #if !defined(BOOST_HAS_UNISTD_H)
 #error "Boost.Scope: This header is only compatible with POSIX systems"

@@ -15,7 +15,7 @@
 #define BOOST_SCOPE_SCOPE_FINAL_HPP_INCLUDED_
 
 #include <type_traits>
-#include <boost/config.hpp>
+#include <boost/scope/detail/config.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
@@ -55,6 +55,7 @@ using is_not_like_scope_final = detail::is_not_like< T, scope_final >;
 template< typename Func >
 class scope_final
 {
+//! \cond
 private:
     struct data
     {
@@ -79,11 +80,26 @@ private:
 
     data m_data;
 
+//! \endcond
 public:
-    //! Constructs a scope final guard with a given callable function object.
+    /*!
+     * \brief Constructs a scope final guard with a given callable function object.
+     *
+     * <b>Requires:</b> \c Func is constructible from \a func.
+     *
+     * <b>Effects:</b> If \c Func is nothrow constructible from <tt>F&&</tt> then constructs \c Func from
+     *                 <tt>std::forward< F >(func)</tt>, otherwise constructs from <tt>func</tt>.
+     *
+     *                 If \c Func construction throws, invokes \a func before returning with the exception.
+     *
+     * <b>Throws:</b> Nothing, unless construction of the function object throws.
+     *
+     * \param func The callable function object to invoke on destruction.
+     */
     template<
-        typename F,
-        typename = typename std::enable_if< detail::conjunction<
+        typename F
+        //! \cond
+        , typename = typename std::enable_if< detail::conjunction<
             std::is_constructible<
                 data,
                 typename detail::move_or_copy_construct_ref< F, Func >::type,
@@ -91,13 +107,16 @@ public:
             >,
             detail::is_not_like_scope_final< F >
         >::value >::type
+        //! \endcond
     >
     scope_final(F&& func)
-        noexcept(std::is_nothrow_constructible<
-            data,
-            typename detail::move_or_copy_construct_ref< F, Func >::type,
-            typename std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::type
-        >::value) :
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
+            std::is_nothrow_constructible<
+                data,
+                typename detail::move_or_copy_construct_ref< F, Func >::type,
+                typename std::is_nothrow_constructible< Func, typename detail::move_or_copy_construct_ref< F, Func >::type >::type
+            >::value
+        )) :
         m_data
         (
             static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func),
@@ -109,7 +128,11 @@ public:
     scope_final(scope_final const&) = delete;
     scope_final& operator= (scope_final const&) = delete;
 
-    //! Invokes the wrapped callable function object and destroys the callable.
+    /*!
+     * \brief Invokes the wrapped callable function object and destroys the callable.
+     *
+     * <b>Throws:</b> Nothing, unless invoking the callable throws.
+     */
     ~scope_final() noexcept(noexcept(std::declval< Func& >()()))
     {
         m_data.m_func();
@@ -125,11 +148,13 @@ scope_final(Func) -> scope_final< Func >;
 
 using scope::scope_final;
 
+//! \cond
 #if defined(BOOST_MSVC)
 #define BOOST_SCOPE_DETAIL_UNIQUE_VAR_TAG __COUNTER__
 #else
 #define BOOST_SCOPE_DETAIL_UNIQUE_VAR_TAG __LINE__
 #endif
+//! \endcond
 
 /*!
  * \brief The macro creates a uniquely named final scope exit guard.

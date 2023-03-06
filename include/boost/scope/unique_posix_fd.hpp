@@ -14,6 +14,7 @@
 #ifndef BOOST_SCOPE_UNIQUE_POSIX_FD_HPP_INCLUDED_
 #define BOOST_SCOPE_UNIQUE_POSIX_FD_HPP_INCLUDED_
 
+#include <boost/scope/detail/config.hpp>
 #include <boost/scope/unique_resource.hpp>
 #include <boost/scope/posix_fd_resource.hpp>
 #include <boost/scope/detail/header.hpp>

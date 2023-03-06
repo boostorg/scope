@@ -15,7 +15,7 @@
 #define BOOST_SCOPE_DETAIL_TYPE_TRAITS_DISJUNCTION_HPP_INCLUDED_
 
 #include <type_traits>
-#include <boost/config.hpp>
+#include <boost/scope/detail/config.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
 #pragma once
