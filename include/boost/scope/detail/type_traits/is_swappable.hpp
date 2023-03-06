@@ -36,31 +36,13 @@ using std::is_swappable;
 
 #else
 
-#include <utility>
-
-namespace boost_scope_is_swappable_detail {
-
-using std::swap;
-
-template< typename T >
-struct is_swappable_impl
-{
-    template< typename U, typename R = decltype(swap(std::declval< U& >(), std::declval< U& >())) >
-    static std::true_type _is_swappable_check(int);
-    template< typename U >
-    static std::false_type _is_swappable_check(...);
-
-    typedef decltype(is_swappable_impl::_is_swappable_check< T >(0)) type;
-};
-
-} // namespace boost_scope_is_swappable_detail
+#include <boost/type_traits/is_swappable.hpp>
 
 namespace boost {
 namespace scope {
 namespace detail {
 
-template< typename T >
-struct is_swappable : public ::boost_scope_is_swappable_detail::is_swappable_impl< T >::type { };
+using boost::is_swappable;
 
 } // namespace detail
 } // namespace scope
