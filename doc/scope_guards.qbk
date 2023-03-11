@@ -124,6 +124,12 @@ invoked on scope exit.
 The [class_scope_scope_final] class itself is compatible with C++11, but given that there is no factory function for it, C++17 support is
 very much desired.]
 
+As you can see, `BOOST_SCOPE_FINAL` offers a few syntax improvements over the other scope guard declarations:
+
+* The declaration does not name a scope guard variable, meaning one does not need to invent one.
+* The declaration is generally shorter to type and easier to spot.
+* There are no extra parenthesis or curly brackets around the function object.
+
 [endsect]
 
 [section:runtime_defined Setting up scope exit actions at run time]
