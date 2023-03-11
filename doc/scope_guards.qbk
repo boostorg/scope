@@ -1,0 +1,207 @@
+[/
+ / Copyright 2023 Andrey Semashev
+ /
+ / Distributed under the Boost Software License, Version 1.0.
+ / (See accompanying file LICENSE_1_0.txt or copy at
+ / https://www.boost.org/LICENSE_1_0.txt)
+ /
+ / This document is a part of Boost.Scope library documentation.
+ /]
+
+[section:scope_guards Scope guards]
+
+A scope guard is an object that invokes an arbitrary function object on destruction. Scope guards are useful for implementing actions
+that need to be reliably performed upon control leaving an execution scope, which is especially helpful for handling exceptions.
+
+The wrapped function object is specified on the scope guard construction and cannot be changed afterwards. It must be one of:
+
+* a user-defined class with a public `operator()` taking no arguments, or
+* an lvalue reference to such class, or
+* an lvalue reference to a function taking no arguments.
+
+Boost.Scope provides four kinds of scope guards, differing in their features and conditions upon which the function object is called,
+summarised in the table below.
+
+[table Scope guard comparison
+[[Feature] [[class_scope_scope_exit]] [[class_scope_scope_success]] [[class_scope_scope_fail]] [[class_scope_scope_final]]]
+[[Invokes function on normal scope exit?] [Yes] [Yes] [No] [Yes]]
+[[Invokes function on scope exit due to an exception?] [Yes] [No] [Yes] [Yes]]
+[[Function may throw?] [Yes] [Yes] [No] [Yes]]
+[[Can be (de)activated?] [Yes] [Yes] [Yes] [No]]
+[[Move-constructible? (requires function to be move-constructible)] [Yes] [Yes] [Yes] [No]]
+[[Has factory function? (C++11-friendly)] [Yes] [Yes] [Yes] [No]]
+]
+
+[note Except for [class_scope_scope_fail], function objects wrapped in scope guards are allowed to throw exceptions upon execution.
+However, users should remember that [class_scope_scope_exit] and [class_scope_scope_final] invoke the wrapped function upon exceptions,
+and throwing an exception from the scope guard in this case will terminate the program. It is user's responsibility to ensure this
+doesn't happen. This problem doesn't exist for [class_scope_scope_success] because it doesn't invoke the wrapped function object on
+exceptions. However, it is generally recommended to use scope guards to implement actions that cannot throw and move all operations
+that may fail to the normal code flow.]
+
+[section:conditional `scope_exit`, `scope_success` and `scope_fail`]
+
+    #include <``[boost_scope_scope_exit_hpp]``>
+    #include <``[boost_scope_scope_success_hpp]``>
+    #include <``[boost_scope_scope_fail_hpp]``>
+
+The [class_scope_scope_exit], [class_scope_scope_success] and [class_scope_scope_fail] scope guards provide similar interfaces and
+capabilities and only differ in conditions when they invoke the wrapped function object. As shown in the table above,
+[class_scope_scope_success] only invokes the function object if it is destroyed normally, [class_scope_scope_fail] - if it is
+destroyed due to an exception being thrown, and [class_scope_scope_exit] acts regardless of the exception status.
+
+In addition to the exception status, each of the scope guards supports active and inactive state. The wrapped function object will
+only be called if the scope guard is in active state while being destroyed. By default, scope guards are created in active state,
+but this can be changed by passing `false` as the second argument for the constructor. Scope guards can also be deactivated or
+re-activated during their lifetime, which can be useful if the scope guard needs to be activated based on some condition.
+
+    class collection
+    {
+        std::set< std::shared_ptr< object > > objects;
+
+    public:
+        void add_object(std::shared_ptr< object > const& obj)
+        {
+            // Create a deactivated scope guard initially
+            std::set< std::shared_ptr< object > >::iterator it;
+            boost::scope::scope_fail rollback_guard{[&, this]
+            {
+                objects.erase(it);
+            },
+            false};
+
+            bool inserted;
+            std::tie(it, inserted) = objects.insert(obj);
+            if (inserted)
+            {
+                // Activate rollback guard
+                rollback_guard.set_active(true);
+            }
+
+            obj->on_added_to_collection(*this);
+        }
+    };
+
+The code sample above relies on C++17 [@https://en.cppreference.com/w/cpp/language/class_template_argument_deduction class template
+argument deduction (CTAD)] for `scope_fail` to deduce the function object type (which is the lambda). If this feature is not available,
+the scope guard construction can be rewritten using a factory function, like this:
+
+    auto rollback_guard = boost::scope::make_scope_fail([&, this]
+    {
+        objects.erase(it);
+    },
+    false);
+
+Factory functions are provided for each of the three scope guards described in this section and are compatible with C++11.
+
+Scope guards described in this section are moveable, which requires the wrapped function objects to be moveable or copyable as well. After
+moving, the moved-from scope guard becomes inactive.
+
+[endsect]
+
+[section:unconditional `scope_final`]
+
+    #include <``[boost_scope_scope_final_hpp]``>
+
+The [class_scope_scope_final] scope guard is similar to [class_scope_scope_exit] in terms of when it invokes the wrapped function. But it
+lacks support for moveability and activation/deactivation - this scope guard is always active upon construction. This allows to implement
+it more efficiently when these features are not needed.
+
+[note [class_scope_scope_final] is a more lightweight version of [class_scope_scope_exit], similar to how `std::lock_guard` is a more
+lightweight version of `std::unique_lock`.]
+
+Since [class_scope_scope_final] effectively provides no interface to interact with after construction, it is better suited for anonymous
+"set up and forget" kind of scope guards. To reinforce this affinity, the library provides a `BOOST_SCOPE_FINAL` macro, which acts as
+a keyword defining a uniquely named [class_scope_scope_final] scope guard. The macro should be followed by the function object to be
+invoked on scope exit.
+
+    BOOST_SCOPE_FINAL []
+    {
+        std::cout << "Hello world!" << std::endl;
+    };
+
+[note `BOOST_SCOPE_FINAL` requires support for C++17 [@https://en.cppreference.com/w/cpp/language/class_template_argument_deduction CTAD].
+The [class_scope_scope_final] class itself is compatible with C++11, but given that there is no factory function for it, C++17 support is
+very much desired.]
+
+[endsect]
+
+[section:runtime_defined Setting up scope exit actions at run time]
+
+It is possible to use scope guard classes to implement scope exit actions that are initialized at run time. To implement this, one could use
+a function object wrapper such as `std::function` together with the scope guard to schedule the function call. For example:
+
+    using cleanup_func_t = std::function< void() >;
+    // Create an inactive scope guard first, since the cleanup function is not set yet
+    boost::scope::scope_exit< cleanup_func_t > cleanup(cleanup_func_t(), false);
+
+    // Later in the program, initialize the scope guard with the function selected at run time
+    if (cond)
+    {
+        cleanup = boost::scope::scope_exit< cleanup_func_t >([]
+        {
+            std::cout << "cond is true" << std::endl;
+        });
+    }
+    else
+    {
+        cleanup = boost::scope::scope_exit< cleanup_func_t >([]
+        {
+            std::cout << "cond is false" << std::endl;
+        });
+    }
+
+It is also possible to do this with `BOOST_SCOPE_FINAL`, although it eliminates one of the advantages provided by this macro, namely not
+having to invent a variable name. Also note that the function wrapper must be valid at all times once the scope guard is constructed.
+
+    // Create a non-empty function wrapper that does nothing
+    std::function< void() > cleanup_func = [] {};
+    // Create a scope guard that refers to the function wrapper
+    BOOST_SCOPE_FINAL std::ref(cleanup_func);
+
+    // Later in the program, initialize the function wrapper
+    if (cond)
+    {
+        cleanup_func = []
+        {
+            std::cout << "cond is true" << std::endl;
+        };
+    }
+    else
+    {
+        cleanup_func = []
+        {
+            std::cout << "cond is false" << std::endl;
+        };
+    }
+
+However, when setting up scope exit actions at run time like that, users should be aware that function wrappers typically use dynamic
+memory allocation internally and copy the function object data, which may involve calling copy constructors that may also fail with an
+exception. Although many standard library implementations use small object optimization for `std::function`, and this technique is also
+used in other implementations like __boost_function__, it is generally not guaranteed that initializing the function wrapper with a given
+function object will not throw. If setting up the scope exit action needs to be a non-throwing operation (for example, if the scope guard
+is supposed to revert the effects of the immediately preceding operation), it is recommended to initialize inactive scope guards beforehand
+and only activate one of them at a later point in the program.
+
+    // Create inactive scope guards for both branches
+    boost::scope::scope_exit cleanup_true([]
+    {
+        std::cout << "cond is true" << std::endl;
+    },
+    false);
+    boost::scope::scope_exit cleanup_false([]
+    {
+        std::cout << "cond is false" << std::endl;
+    },
+    false);
+
+    // Later in the program, activate one of the scope guards.
+    // This won't throw.
+    if (cond)
+        cleanup_true.set_active(true);
+    else
+        cleanup_false.set_active(true);
+
+[endsect]
+
+[endsect]

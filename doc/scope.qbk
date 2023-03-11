@@ -1,0 +1,221 @@
+[library Boost.Scope
+    [quickbook 1.7]
+    [authors [Semashev, Andrey]]
+    [copyright 2022-2023 Andrey Semashev]
+    [license
+        Distributed under the Boost Software License, Version 1.0.
+        (See accompanying file LICENSE_1_0.txt or copy at
+        [@https://www.boost.org/LICENSE_1_0.txt]).
+    ]
+    [id scope]
+    [source-mode c++]
+]
+
+[c++]
+
+[/ Links to external resources /]
+[def __boost_config__ [@http://www.boost.org/doc/libs/release/libs/config/doc/html/index.html Boost.Config]]
+[def __boost_function__ [@https://www.boost.org/doc/libs/release/doc/html/function.html Boost.Function]]
+[def __boost_scope_exit__ [@http://www.boost.org/doc/libs/release/libs/scope_exit/doc/html/index.html Boost.ScopeExit]]
+[def __boost_smart_ptr__ [@http://www.boost.org/doc/libs/release/libs/smart_ptr/doc/html/smart_ptr.html Boost.SmartPtr]]
+
+[template github_issue[key][@https://github.com/boostorg/scope/issues/[key] #[key]]]
+[template github_pr[key][@https://github.com/boostorg/scope/pull/[key] PR#[key]]]
+
+[/ Auto-generated macros that refer to Reference sections /]
+[import tmp/top_level_reference.qbk]
+
+[section:intro Introduction]
+
+The Boost.Scope library is a collection of utilities helping code execution upon leaving a scope and automatic resource management. The library contains
+components that were defined in the [@https://cplusplus.github.io/fundamentals-ts/v3.html C++ Extensions for Library Fundamentals, Version 3] technical specification,
+in the [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`] standard library
+header. The library also contains extensions to the Fundamentals TS that improve usability or efficiency of the components.
+
+The components provided by the library can be divided into two categories:
+
+* A set of scope guards that allow executing arbitrary code when the scope guard is destroyed,
+* A generic resource handle that automatically frees the owned resource upon destruction.
+
+There is some overlap in terms of functionality with __boost_scope_exit__, __boost_smart_ptr__ as well as C++ standard library smart-pointers. __boost_scope_exit__
+defines a set of macros for defining code blocks to be executed at scope exit. Scope guards provided by Boost.Scope provide similar functionality, but with
+simpler syntax and new features. You can see the syntax differences in the table below:
+
+[table __boost_scope_exit__ and Boost.Scope comparison
+[[__boost_scope_exit__ (C++03)] [Boost.Scope (C++11)] [Boost.Scope (C++17)]]
+[[
+```
+class adder
+{
+    int x, y;
+
+public:
+    int compute()
+    {
+        // Reset variables on return
+        BOOST_SCOPE_EXIT(this_)
+        {
+            this_->x = 0;
+            this_->y = 0;
+        }
+        BOOST_SCOPE_EXIT_END;
+
+        return x + y;
+    }
+};
+```
+]
+[
+```
+class adder
+{
+    int x, y;
+
+public:
+    int compute()
+    {
+        // Reset variables on return
+        auto cleanup = boost::scope::make_scope_exit([this]
+        {
+            x = 0;
+            y = 0;
+        });
+
+        return x + y;
+    }
+};
+```
+]
+[
+```
+class adder
+{
+    int x, y;
+
+public:
+    int compute()
+    {
+        // Reset variables on return
+        BOOST_SCOPE_FINAL [this]
+        {
+            x = 0;
+            y = 0;
+        };
+
+        return x + y;
+    }
+};
+```
+]]
+[[
+```
+template< typename Object >
+class collection
+{
+    std::set< Object > objects;
+
+public:
+    template< typename T >
+    void add_object(T const& arg)
+    {
+        typename std::set< Object >::iterator it =
+            objects.insert(Object());
+
+        // Remove the object on failure
+        unsigned int uncaught_count =
+            boost::core::uncaught_exceptions();
+        BOOST_SCOPE_EXIT_TPL(this_, it, uncaught_count)
+        {
+            if (uncaught_count != boost::core::uncaught_exceptions())
+                this_->objects.erase(it);
+        }
+        BOOST_SCOPE_EXIT_END;
+
+        // Throws on error
+        it->activate(arg);
+    }
+};
+```
+]
+[
+```
+template< typename Object >
+class collection
+{
+    std::set< Object > objects;
+
+public:
+    template< typename T >
+    void add_object(T&& arg)
+    {
+        auto it = objects.emplace();
+
+        // Remove the object on failure
+        auto cleanup = boost::scope::make_scope_fail([this, it]
+        {
+            objects.erase(it);
+        });
+
+        // Throws on error
+        it->activate(std::forward< T >(arg));
+    }
+};
+```
+]
+[
+```
+template< typename Object >
+class collection
+{
+    std::set< Object > objects;
+
+public:
+    template< typename T >
+    void add_object(T&& arg)
+    {
+        auto it = objects.emplace();
+
+        // Remove the object on failure
+        boost::scope::scope_fail cleanup{[this, it]
+        {
+            objects.erase(it);
+        }};
+
+        // Throws on error
+        it->activate(std::forward< T >(arg));
+    }
+};
+```
+]]
+]
+
+Unique resource wrapper provided by Boost.Scope is a generalization of smart pointers like `std::unique_ptr` and `boost::scoped_ptr` from __boost_smart_ptr__. While
+smart pointers are suitable for managing resources represented by pointers (e.g. objects in dynamically allocated memory), unique resource wrapper can be used
+with any kind of resource types, such as integers (e.g. POSIX file descriptors) and user-defined types.
+
+The library defines its components in namespace `boost::scope`. For brevity, the namespace qualification may be omitted in this documentation; readers should assume
+that unqualified names like `scope_exit` or `unique_resource` are defined in `boost::scope`.
+
+[endsect]
+
+[section:install_compat Installation and compatibility]
+
+This library is header-only, it does not require separate compilation. You can add the path to Boost headers to your project, include the required Boost.Scope header
+and then use the component provided by that header in your code.
+
+The library requires a C++11 compiler at the minimum. For certain fetures, C++17 support is required. The following compilers were tested with the library:
+
+* gcc 4.8 and newer
+* clang 3.5 and newer
+* MSVC 14.0 and newer
+
+Except for the POSIX file descriptor support, which is only available on POSIX systems, the library components are agnostic to the operating system.
+
+[endsect]
+
+[include scope_guards.qbk]
+[include unique_resource.qbk]
+
+[xinclude tmp/top_level_reference.xml]
+
+[include changelog.qbk]

@@ -1,0 +1,14 @@
+[/
+ / Copyright 2023 Andrey Semashev
+ /
+ / Distributed under the Boost Software License, Version 1.0.
+ / (See accompanying file LICENSE_1_0.txt or copy at
+ / https://www.boost.org/LICENSE_1_0.txt)
+ /
+ / This document is a part of Boost.Scope library documentation.
+ /]
+
+[section:unique_resource Unique resource handle]
+
+
+[endsect]
