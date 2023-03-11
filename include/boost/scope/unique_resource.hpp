@@ -1025,13 +1025,13 @@ struct dereference_traits< T, true >
  * If specified, the resource traits must be a class that has the following
  * public static members:
  *
- * \li <tt>Resource make_default() noexcept</tt> - must return the default
- *     resource value.
- * \li <tt>bool is_allocated(Resource const& res) noexcept</tt> - must
+ * \li `Resource make_default() noexcept` - must return the default resource
+ *      value.
+ * \li `bool is_allocated(Resource const& res) noexcept` - must
  *     return \c true if \c res is not one of the unallocated resource values
  *     and \c false otherwise.
  *
- * Note that <tt>is_allocated(make_default())</tt> must always return \c false.
+ * Note that `is_allocated(make_default())` must always return \c false.
  *
  * When conforming resource traits are specified, \c unique_resource will be able
  * to avoid storing additional indication of whether the owned resource object
@@ -1070,14 +1070,14 @@ public:
     /*!
      * \brief Constructs an unallocated unique resource guard.
      *
-     * <b>Requires:</b> Default \c Resource value can be constructed and \c Deleter is default-constructible.
+     * **Requires:** Default \c Resource value can be constructed and \c Deleter is default-constructible.
      *
-     * <b>Effects:</b> Initializes the \c Resource object with the default resource value. Default-constructs
-     *                 the \c Deleter object.
+     * **Effects:** Initializes the \c Resource object with the default resource value. Default-constructs
+     *              the \c Deleter object.
      *
-     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     * **Throws:** Nothing, unless construction of \c Resource or \c Deleter throws.
      *
-     * \post <tt>this->allocated() == false</tt>
+     * \post `this->allocated() == false`
      */
     //! \cond
     template<
@@ -1092,18 +1092,18 @@ public:
     /*!
      * \brief Constructs an unallocated unique resource guard with the given deleter.
      *
-     * <b>Requires:</b> Default \c Resource value can be constructed and \c Deleter is constructible from \a del.
+     * **Requires:** Default \c Resource value can be constructed and \c Deleter is constructible from \a del.
      *
-     * <b>Effects:</b> Initializes the \c Resource value with the default resource value. If \c Deleter is nothrow
-     *                 constructible from <tt>D&&</tt> then constructs \c Deleter from <tt>std::forward< D >(del)</tt>,
-     *                 otherwise constructs from <tt>del</tt>.
+     * **Effects:** Initializes the \c Resource value with the default resource value. If \c Deleter is nothrow
+     *              constructible from `D&&` then constructs \c Deleter from `std::forward< D >(del)`,
+     *              otherwise constructs from `del`.
      *
-     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     * **Throws:** Nothing, unless construction of \c Resource or \c Deleter throws.
      *
      * \param res A tag argument indicating default resource value.
      * \param del Resource deleter function object.
      *
-     * \post <tt>this->allocated() == false</tt>
+     * \post `this->allocated() == false`
      */
     template<
         typename D
@@ -1132,12 +1132,12 @@ public:
     /*!
      * \brief Constructs a unique resource guard with the given resource and a default-constructed deleter.
      *
-     * <b>Requires:</b> \c Resource is constructible from \a res and \c Deleter is default-constructible.
+     * **Requires:** \c Resource is constructible from \a res and \c Deleter is default-constructible.
      *
-     * <b>Effects:</b> Constructs the unique resource object as if by calling
-     *                 <tt>unique_resource(std::forward< R >(res), Deleter())</tt>.
+     * **Effects:** Constructs the unique resource object as if by calling
+     *              `unique_resource(std::forward< R >(res), Deleter())`.
      *
-     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     * **Throws:** Nothing, unless construction of \c Resource or \c Deleter throws.
      *
      * \param res Resource object.
      */
@@ -1170,24 +1170,24 @@ public:
     /*!
      * \brief Constructs a unique resource guard with the given resource and deleter.
      *
-     * <b>Requires:</b> \c Resource is constructible from \a res and \c Deleter is constructible from \a del.
+     * **Requires:** \c Resource is constructible from \a res and \c Deleter is constructible from \a del.
      *
-     * <b>Effects:</b> If \c Resource is nothrow constructible from <tt>R&&</tt> then constructs \c Resource
-     *                 from <tt>std::forward< R >(res)</tt>, otherwise constructs from <tt>res</tt>. If \c Deleter
-     *                 is nothrow constructible from <tt>D&&</tt> then constructs \c Deleter from
-     *                 <tt>std::forward< D >(del)</tt>, otherwise constructs from <tt>del</tt>.
+     * **Effects:** If \c Resource is nothrow constructible from `R&&` then constructs \c Resource
+     *              from `std::forward< R >(res)`, otherwise constructs from `res`. If \c Deleter
+     *              is nothrow constructible from `D&&` then constructs \c Deleter from
+     *              `std::forward< D >(del)`, otherwise constructs from `del`.
      *
-     *                 If construction of \c Resource or \c Deleter throws and \a res is not an unallocated resource
-     *                 value, invokes \a del on \a res (if \c Resource construction failed) or the constructed
-     *                 \c Resource object (if \c Deleter construction failed).
+     *              If construction of \c Resource or \c Deleter throws and \a res is not an unallocated resource
+     *              value, invokes \a del on \a res (if \c Resource construction failed) or the constructed
+     *              \c Resource object (if \c Deleter construction failed).
      *
-     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     * **Throws:** Nothing, unless construction of \c Resource or \c Deleter throws.
      *
      * \param res Resource object.
      * \param del Resource deleter function object.
      *
-     * \post If \a res is an unallocated resource value then <tt>this->allocated() == false</tt>, otherwise
-     *       <tt>this->allocated() == true</tt>.
+     * \post If \a res is an unallocated resource value then `this->allocated() == false`, otherwise
+     *       `this->allocated() == true`.
      */
     template<
         typename R,
@@ -1221,25 +1221,25 @@ public:
     /*!
      * \brief Move-constructs a unique resource guard.
      *
-     * <b>Requires:</b> \c Resource and \c Deleter are move-constructible.
+     * **Requires:** \c Resource and \c Deleter are move-constructible.
      *
-     * <b>Effects:</b> If \c Resource is nothrow move-constructible then move-constructs \c Resource,
-     *                 otherwise copy-constructs. If \c Deleter is nothrow move-constructible then move-constructs
-     *                 \c Deleter, otherwise copy-constructs. Deactivates the moved-from unique resource object.
+     * **Effects:** If \c Resource is nothrow move-constructible then move-constructs \c Resource,
+     *              otherwise copy-constructs. If \c Deleter is nothrow move-constructible then move-constructs
+     *              \c Deleter, otherwise copy-constructs. Deactivates the moved-from unique resource object.
      *
-     *                 If <tt>that.allocated()</tt> was \c true prior to the operation and constructing \c Deleter
-     *                 throws after \c Resource is move-constructed, invokes the original deleter stored in \a that
-     *                 on the resource and deactivates \a that before returning with the exception. In other
-     *                 exceptional cases \a that is left intact.
+     *              If `that.allocated()` was \c true prior to the operation and constructing \c Deleter
+     *              throws after \c Resource is move-constructed, invokes the original deleter stored in \a that
+     *              on the resource and deactivates \a that before returning with the exception. In other
+     *              exceptional cases \a that is left intact.
      *
      * \note This logic ensures that the resource is not leaked in case of an exception.
      *
-     * <b>Throws:</b> Nothing, unless construction of \c Resource or \c Deleter throws.
+     * **Throws:** Nothing, unless construction of \c Resource or \c Deleter throws.
      *
      * \param that Move source.
      *
-     * \post Let \c allocated be equal to <tt>that.allocated()</tt> prior to the operation. Then
-     *       <tt>this->allocated() == allocated</tt> and <tt>that.allocated() == false</tt>.
+     * \post Let \c allocated be equal to `that.allocated()` prior to the operation. Then
+     *       `this->allocated() == allocated` and `that.allocated() == false`.
      */
     //! \cond
     template<
@@ -1255,23 +1255,23 @@ public:
     /*!
      * \brief Move-assigns a unique resource guard.
      *
-     * <b>Requires:</b> \c Resource and \c Deleter are move-assignable.
+     * **Requires:** \c Resource and \c Deleter are move-assignable.
      *
-     * <b>Effects:</b> Calls <tt>this->reset()</tt>. Then, if \c Deleter is nothrow move-assignable, move-assigns
-     *                 the \c Deleter object first and the \c Resource object next. Otherwise, move-assigns
-     *                 the objects in reverse order. Lastly, deactivates the moved-from unique resource object.
+     * **Effects:** Calls `this->reset()`. Then, if \c Deleter is nothrow move-assignable, move-assigns
+     *              the \c Deleter object first and the \c Resource object next. Otherwise, move-assigns
+     *              the objects in reverse order. Lastly, deactivates the moved-from unique resource object.
      *
-     *                 If an exception is thrown, \a that is left intact.
+     *              If an exception is thrown, \a that is left intact.
      *
      * \note The different orders of assignment ensure that in case of an exception the resource is not leaked
      *       and ramains owned by the move source.
      *
-     * <b>Throws:</b> Nothing, unless assignment of \c Resource or \c Deleter throws.
+     * **Throws:** Nothing, unless assignment of \c Resource or \c Deleter throws.
      *
      * \param that Move source.
      *
-     * \post Let \c allocated be equal to <tt>that.allocated()</tt> prior to the operation. Then
-     *       <tt>this->allocated() == allocated</tt> and <tt>that.allocated() == false</tt>.
+     * \post Let \c allocated be equal to `that.allocated()` prior to the operation. Then
+     *       `this->allocated() == allocated` and `that.allocated() == false`.
      */
 #if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = std::is_move_assignable< data >::value >
@@ -1288,9 +1288,9 @@ public:
     }
 
     /*!
-     * \brief Invokes <tt>reset()</tt> and destroys the resource.
+     * \brief Invokes `reset()` and destroys the resource.
      *
-     * <b>Throws:</b> Nothing, unless invoking the deleter throws.
+     * **Throws:** Nothing, unless invoking the deleter throws.
      */
     ~unique_resource() noexcept(noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())))
     {
@@ -1300,7 +1300,7 @@ public:
     /*!
      * \brief Returns \c true if the resource is allocated and to be reclaimed by the deleter, otherwise \c false.
      *
-     * <b>Throws:</b> Nothing.
+     * **Throws:** Nothing.
      */
     bool allocated() const noexcept
     {
@@ -1310,7 +1310,7 @@ public:
     /*!
      * \brief Returns a reference to the resource object.
      *
-     * <b>Throws:</b> Nothing.
+     * **Throws:** Nothing.
      */
     resource_type const& get() const noexcept
     {
@@ -1320,7 +1320,7 @@ public:
     /*!
      * \brief Returns a reference to the deleter object.
      *
-     * <b>Throws:</b> Nothing.
+     * **Throws:** Nothing.
      */
     deleter_type const& get_deleter() const noexcept
     {
@@ -1330,9 +1330,9 @@ public:
     /*!
      * \brief Marks the resource as unallocated. Does not call the deleter if the resource was previously allocated.
      *
-     * <b>Throws:</b> Nothing.
+     * **Throws:** Nothing.
      *
-     * \post <tt>this->allocated() == false</tt>
+     * \post `this->allocated() == false`
      */
     void release() noexcept
     {
@@ -1342,9 +1342,9 @@ public:
     /*!
      * \brief If the resource is allocated, calls the deleter function on it and marks the resource as unallocated.
      *
-     * <b>Throws:</b> Nothing, unless invoking the deleter throws.
+     * **Throws:** Nothing, unless invoking the deleter throws.
      *
-     * \post <tt>this->allocated() == false</tt>
+     * \post `this->allocated() == false`
      */
     void reset() noexcept(noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())))
     {
@@ -1358,18 +1358,18 @@ public:
     /*!
      * \brief Assigns a new resource object to the unique resource wrapper.
      *
-     * <b>Effects:</b> Calls <tt>this->reset()</tt>. Then, if \c Resource is nothrow assignable from <tt>R&&</tt>,
-     *                 assigns <tt>std::forward< R >(res)</tt> to the stored resource object, otherwise assigns
-     *                 <tt>res</tt>.
+     * **Effects:** Calls `this->reset()`. Then, if \c Resource is nothrow assignable from `R&&`,
+     *              assigns `std::forward< R >(res)` to the stored resource object, otherwise assigns
+     *              `res`.
      *
-     *                 If \a res is not an unallocated resource value and an exception is thrown during the operation,
-     *                 invokes the stored deleter on \a res before returning with the exception.
+     *              If \a res is not an unallocated resource value and an exception is thrown during the operation,
+     *              invokes the stored deleter on \a res before returning with the exception.
      *
-     * <b>Throws:</b> Nothing, unless invoking the deleter throws.
+     * **Throws:** Nothing, unless invoking the deleter throws.
      *
      * \param res Resource object to assign.
      *
-     * \post <tt>this->allocated() == false</tt>
+     * \post `this->allocated() == false`
      */
     template< typename R >
 #if !defined(BOOST_SCOPE_DOXYGEN)
@@ -1401,15 +1401,15 @@ public:
     /*!
      * \brief Invokes indirection on the resource object.
      *
-     * <b>Requires:</b> \c Resource is dereferenceable.
+     * **Requires:** \c Resource is dereferenceable.
      *
-     * <b>Effects:</b> Returns a reference to the resource object as if by calling <tt>get()</tt>.
+     * **Effects:** Returns a reference to the resource object as if by calling `get()`.
      *
-     * \note If \c Resource is not a pointer type, the compiler will invoke its <tt>operator-></tt>.
+     * \note If \c Resource is not a pointer type, the compiler will invoke its `operator->`.
      *       Such call sequence will continue until a pointer is obtained.
      *
-     * <b>Throws:</tt> Nothing. Note that any implicit subsequent calls to other <tt>operator-></tt>
-     *                 functions that are caused by this call may have different throw conditions.
+     * **Throws:** Nothing. Note that any implicit subsequent calls to other `operator->`
+     *             functions that are caused by this call may have different throw conditions.
      */
 #if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = detail::is_dereferenceable< resource_type >::value >
@@ -1425,11 +1425,11 @@ public:
     /*!
      * \brief Dereferences the resource object.
      *
-     * <b>Requires:</b> \c Resource is dereferenceable.
+     * **Requires:** \c Resource is dereferenceable.
      *
-     * <b>Effects:</b> Returns the result of dereferencing the resource object as if by calling <tt>*get()</tt>.
+     * **Effects:** Returns the result of dereferencing the resource object as if by calling `*get()`.
      *
-     * <b>Throws:</tt> Nothing, unless dereferencing the resource object throws.
+     * **Throws:** Nothing, unless dereferencing the resource object throws.
      */
 #if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = detail::is_dereferenceable< resource_type >::value >
@@ -1446,14 +1446,14 @@ public:
     /*!
      * \brief Swaps two unique resource wrappers.
      *
-     * <b>Requires:</b> \c Resource and \c Deleter are swappable. At least one of \c Resource and \c Deleter
-     *                  is nothrow swappable.
+     * **Requires:** \c Resource and \c Deleter are swappable. At least one of \c Resource and \c Deleter
+     *               is nothrow swappable.
      *
-     * <b>Effects:</b> Swaps the resource objects and deleter objects stored in <tt>*this</tt> and <tt>that</tt>
-     *                 as if by calling unqualified <tt>swap</tt> in a context where <tt>std::swap</tt> is
-     *                 found by overload resolution.
+     * **Effects:** Swaps the resource objects and deleter objects stored in `*this` and `that`
+     *              as if by calling unqualified `swap` in a context where `std::swap` is
+     *              found by overload resolution.
      *
-     * <b>Throws:</tt> Nothing, unless swapping the resource objects or deleters throw.
+     * **Throws:** Nothing, unless swapping the resource objects or deleters throw.
      *
      * \param that Unique resource wrapper to swap with.
      */
@@ -1472,7 +1472,7 @@ public:
     /*!
      * \brief Swaps two unique resource wrappers.
      *
-     * <b>Effects:</b> As if <tt>left.swap(right)</tt>.
+     * **Effects:** As if `left.swap(right)`.
      */
 #if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = detail::is_swappable< data >::value >
@@ -1529,13 +1529,13 @@ unique_resource(Resource&&, Deleter&&) -> unique_resource<
 /*!
  * \brief Checks if the resource is valid and creates a \c unique_resource wrapper.
  *
- * <b>Effects:</b> If the resource \a res is not equal to \a invalid, creates a unique resource wrapper
- *                 that is in allocated state and owns \a res. Otherwise creates a unique resource wrapper
- *                 in deallocated state.
+ * **Effects:** If the resource \a res is not equal to \a invalid, creates a unique resource wrapper
+ *              that is in allocated state and owns \a res. Otherwise creates a unique resource wrapper
+ *              in deallocated state.
  *
  * \note This function does not call \a del if \a res is equal to \a invalid.
  *
- * <b>Throws:</b> Nothing, unless \c unique_resource constructor throws.
+ * **Throws:** Nothing, unless \c unique_resource constructor throws.
  *
  * \param res Resource to wrap.
  * \param invalid An invalid value for the resource.

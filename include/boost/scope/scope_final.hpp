@@ -45,7 +45,7 @@ using is_not_like_scope_final = detail::is_not_like< T, scope_final >;
  * A scope exit guard wraps a function object callable with no arguments
  * that can be one of:
  *
- * \li A user-defined class with a public <tt>operator()</tt>.
+ * \li A user-defined class with a public `operator()`.
  * \li An lvalue reference to such class.
  * \li An lvalue reference to function taking no arguments.
  *
@@ -85,14 +85,14 @@ public:
     /*!
      * \brief Constructs a scope final guard with a given callable function object.
      *
-     * <b>Requires:</b> \c Func is constructible from \a func.
+     * **Requires:** \c Func is constructible from \a func.
      *
-     * <b>Effects:</b> If \c Func is nothrow constructible from <tt>F&&</tt> then constructs \c Func from
-     *                 <tt>std::forward< F >(func)</tt>, otherwise constructs from <tt>func</tt>.
+     * **Effects:** If \c Func is nothrow constructible from `F&&` then constructs \c Func from
+     *              `std::forward< F >(func)`, otherwise constructs from `func`.
      *
-     *                 If \c Func construction throws, invokes \a func before returning with the exception.
+     *              If \c Func construction throws, invokes \a func before returning with the exception.
      *
-     * <b>Throws:</b> Nothing, unless construction of the function object throws.
+     * **Throws:** Nothing, unless construction of the function object throws.
      *
      * \param func The callable function object to invoke on destruction.
      */
@@ -131,7 +131,7 @@ public:
     /*!
      * \brief Invokes the wrapped callable function object and destroys the callable.
      *
-     * <b>Throws:</b> Nothing, unless invoking the callable throws.
+     * **Throws:** Nothing, unless invoking the callable throws.
      */
     ~scope_final() noexcept(noexcept(std::declval< Func& >()()))
     {
@@ -162,12 +162,12 @@ using scope::scope_final;
  * The macro should be followed by a function object that should be called
  * on leaving the current scope. Usage example:
  *
- * <code>
+ * ```
  * BOOST_SCOPE_FINAL []
  * {
  *     std::cout << "Hello world!" << std::endl;
  * };
- * </code>
+ * ```
  *
  * \note Using this macro requires C++17.
  */

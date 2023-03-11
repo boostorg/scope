@@ -46,7 +46,7 @@ using is_not_like_scope_exit = detail::is_not_like< T, scope_exit >;
  * A scope exit guard wraps a function object callable with no arguments
  * that can be one of:
  *
- * \li A user-defined class with a public <tt>operator()</tt>.
+ * \li A user-defined class with a public `operator()`.
  * \li An lvalue reference to such class.
  * \li An lvalue reference to function taking no arguments.
  *
@@ -56,10 +56,9 @@ using is_not_like_scope_exit = detail::is_not_like< T, scope_exit >;
  * the scope guard does not call the wrapped function object.
  *
  * The scope guard can be made inactive by moving-from the scope guard
- * or calling <tt>set_active(false)</tt> or <tt>release()</tt>. An inactive
- * scope guard can be made active by calling <tt>set_active(true)</tt>.
- * If a moved-from scope guard is active on destruction, the behavior
- * is undefined.
+ * or calling `set_active(false)` or `release()`. An inactive scope guard
+ * can be made active by calling `set_active(true)`. If a moved-from scope
+ * guard is active on destruction, the behavior is undefined.
  */
 template< typename Func >
 class scope_exit
@@ -100,20 +99,20 @@ public:
     /*!
      * \brief Constructs a scope guard with a given callable function object.
      *
-     * <b>Requires:</b> \c Func is constructible from \a func.
+     * **Requires:** \c Func is constructible from \a func.
      *
-     * <b>Effects:</b> If \c Func is nothrow constructible from <tt>F&&</tt> then constructs \c Func from
-     *                 <tt>std::forward< F >(func)</tt>, otherwise constructs from <tt>func</tt>.
+     * **Effects:** If \c Func is nothrow constructible from `F&&` then constructs \c Func from
+     *              `std::forward< F >(func)`, otherwise constructs from `func`.
      *
-     *                 If \c Func construction throws and \a active is \c true, invokes \a func before
-     *                 returning with the exception.
+     *              If \c Func construction throws and \a active is \c true, invokes \a func before
+     *              returning with the exception.
      *
-     * <b>Throws:</b> Nothing, unless construction of the function object throws.
+     * **Throws:** Nothing, unless construction of the function object throws.
      *
      * \param func The callable function object to invoke on destruction.
      * \param active Indicates whether the scope guard should be active upon construction.
      *
-     * \post <tt>this->active() == active</tt>
+     * \post `this->active() == active`
      */
     template<
         typename F
@@ -140,16 +139,16 @@ public:
     /*!
      * \brief Move-constructs a scope guard.
      *
-     * <b>Requires:</b> \c Func is nothrow move-constructible or copy-constructible.
+     * **Requires:** \c Func is nothrow move-constructible or copy-constructible.
      *
-     * <b>Effects:</b> If \c Func is nothrow move-constructible then move-constructs \c Func from
-     *                 a member of \a that, otherwise copy-constructs.
+     * **Effects:** If \c Func is nothrow move-constructible then move-constructs \c Func from
+     *              a member of \a that, otherwise copy-constructs.
      *
-     * <b>Throws:</b> Nothing, unless construction of the function object throws.
+     * **Throws:** Nothing, unless construction of the function object throws.
      *
      * \param that Move source.
      *
-     * \post <tt>that.active() == false</tt>
+     * \post `that.active() == false`
      */
     //! \cond
     template<
@@ -187,9 +186,9 @@ public:
     scope_exit& operator= (scope_exit const&) = delete;
 
     /*!
-     * \brief If <tt>active() == true</tt>, invokes the wrapped callable function object. Destroys the callable.
+     * \brief If `active() == true`, invokes the wrapped callable function object. Destroys the callable.
      *
-     * <b>Throws:</b> Nothing, unless invoking the callable throws.
+     * **Throws:** Nothing, unless invoking the callable throws.
      */
     ~scope_exit() noexcept(noexcept(std::declval< Func& >()()))
     {
@@ -200,7 +199,7 @@ public:
     /*!
      * \brief Returns \c true if the scope guard is active, otherwise \c false.
      *
-     * <b>Throws:</b> Nothing.
+     * **Throws:** Nothing.
      */
     bool active() const noexcept
     {
@@ -210,11 +209,11 @@ public:
     /*!
      * \brief Activates or deactivates the scope guard.
      *
-     * <b>Throws:</b> Nothing.
+     * **Throws:** Nothing.
      *
      * \param active The active status to set.
      *
-     * \post <tt>this->active() == active</tt>
+     * \post `this->active() == active`
      */
     void set_active(bool active) noexcept
     {
@@ -224,11 +223,11 @@ public:
     /*!
      * \brief Deactivates the scope guard.
      *
-     * <b>Effects:</b> As if <tt>set_active(false)</tt>.
+     * **Effects:** As if `set_active(false)`.
      *
-     * <b>Throws:</b> Nothing.
+     * **Throws:** Nothing.
      *
-     * \post <tt>this->active() == false</tt>
+     * \post `this->active() == false`
      */
     void release() noexcept
     {
@@ -247,8 +246,8 @@ scope_exit(scope_exit< Func >&&) -> scope_exit< Func >;
 /*!
  * \brief Creates a scope exit guard with a given callable function object.
  *
- * <b>Effects:</b> Constructs a scope guard as if by calling
- *                 <tt>scope_exit< Func >(std::forward< Func >(func), active)</tt>.
+ * **Effects:** Constructs a scope guard as if by calling
+ *              `scope_exit< Func >(std::forward< Func >(func), active)`.
  *
  * \param func The callable function object to invoke on destruction.
  * \param active Indicates whether the scope guard should be active upon construction.
