@@ -1001,9 +1001,9 @@ struct dereference_traits< T, true >
  * the deleter function object on it on destruction. The wrapped resource can have
  * any type that is:
  *
- * \li Move-constructible, where the move constructor doesn't throw, or
+ * \li Move-constructible, where the move constructor is marked as `noexcept`, or
  * \li Copy-constructible, or
- * \li A reference to one of the above.
+ * \li An lvalue reference to an object type.
  *
  * The deleter must be a function object type that is callable on an lvalue
  * of the resource type. The deleter must be copy-constructible.

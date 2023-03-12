@@ -35,7 +35,7 @@ header. The library also contains extensions to the Fundamentals TS that improve
 The components provided by the library can be divided into two categories:
 
 * A set of scope guards that allow executing arbitrary code when the scope guard is destroyed,
-* A generic resource handle that automatically frees the owned resource upon destruction.
+* A generic resource wrapper that automatically frees the owned resource upon destruction.
 
 There is some overlap in terms of functionality with __boost_scope_exit__, __boost_smart_ptr__ as well as C++ standard library smart-pointers. __boost_scope_exit__
 defines a set of macros for defining code blocks to be executed at scope exit. Scope guards provided by Boost.Scope provide similar functionality, but with
@@ -191,7 +191,7 @@ public:
 
 Unique resource wrapper provided by Boost.Scope is a generalization of smart pointers like `std::unique_ptr` and `boost::scoped_ptr` from __boost_smart_ptr__. While
 smart pointers are suitable for managing resources represented by pointers (e.g. objects in dynamically allocated memory), unique resource wrapper can be used
-with any kind of resource types, such as integers (e.g. POSIX file descriptors) and user-defined types.
+with many more kinds of resource types, such as integers (e.g. POSIX file descriptors) and user-defined types.
 
 The library defines its components in namespace `boost::scope`. For brevity, the namespace qualification may be omitted in this documentation; readers should assume
 that unqualified names like `scope_exit` or `unique_resource` are defined in `boost::scope`.

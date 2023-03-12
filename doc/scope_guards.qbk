@@ -19,6 +19,9 @@ The wrapped function object is specified on the scope guard construction and can
 * an lvalue reference to such class, or
 * an lvalue reference to a function taking no arguments.
 
+Note that if the wrapped function is a reference to a function object, that object must be stored externally to the scope guard and
+must remain valid for the entire lifetime of the scope guard.
+
 Boost.Scope provides four kinds of scope guards, differing in their features and conditions upon which the function object is called,
 summarised in the table below.
 

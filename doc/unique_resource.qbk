@@ -8,7 +8,31 @@
  / This document is a part of Boost.Scope library documentation.
  /]
 
-[section:unique_resource Unique resource handle]
+[section:unique_resource Unique resource wrapper]
 
+    #include <``[boost_scope_unique_resource_hpp]``>
+
+Boost.Scope provides a [class_scope_unique_resource] class template. This is a wrapper for an arbitrary resource that represents exclusive
+ownership of the resource. The wrapper offers access to the owned resource and automatically calls a deleter function object to free the
+resource upon destruction. This is a generalization of `std::unique_ptr`, but while `std::unique_ptr` is only used to wrap pointers,
+[class_scope_unique_resource] can wrap other types of resources as well.
+
+A resource type must have the following properties to be compatible with [class_scope_unique_resource]:
+
+* Move-constructible, where the move constructor is marked as `noexcept`, or
+* Copy-constructible, or
+* An lvalue reference to an object type.
+
+Note that if the resource type is a reference, the referenced object must be stored externally to the [class_scope_unique_resource] wrapper
+and must remain valid for the entire duration of ownership by the wrapper. Users are not expected to access the resource object other than
+through the [class_scope_unique_resource] wrapper. For example, it is not allowed to modify the resource object by setting it to an invalid
+state or explicitly freeing the resource circumventing the resource wrapper, as the wrapper will still invoke the deleter on the then-invalid
+resource.
+
+The deleter must be a function object type that is callable on an lvalue of the resource type. The deleter must be copy-constructible. Some
+of the [class_scope_unique_resource] operations impose additional requirements on the resource and deleter types; such operations will not
+be available if those requirements aren't met. The requirements are listed for each operation in the [class_scope_unique_resource] class
+reference. Although not strictly required, it is generally highly recommended that calling a deleter on a resource doesn't throw exceptions
+and is marked `noexcept`, as the deleter will often be called from the [class_scope_unique_resource] destructor.
 
 [endsect]
