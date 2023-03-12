@@ -94,8 +94,9 @@ the scope guard construction can be rewritten using a factory function, like thi
 
 Factory functions are provided for each of the three scope guards described in this section and are compatible with C++11.
 
-Scope guards described in this section are moveable, which requires the wrapped function objects to be moveable or copyable as well. After
-moving, the moved-from scope guard becomes inactive. If a moved-from scope guard is active on destruction, the behavior is undefined.
+Scope guards described in this section are move-constructible (but not assignable), which requires the wrapped function objects to be
+move- or copy-constructible as well. After moving, the moved-from scope guard becomes inactive. If a moved-from scope guard is active
+on destruction, the behavior is undefined.
 
 [endsect]
 
