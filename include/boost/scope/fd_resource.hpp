@@ -6,25 +6,25 @@
  * Copyright (c) 2023 Andrey Semashev
  */
 /*!
- * \file scope/posix_fd_resource.hpp
+ * \file scope/fd_resource.hpp
  *
  * This header contains definition of \c unique_resource utilities
- * for compatibility with POSIX file descriptors.
+ * for compatibility with POSIX-like file descriptors.
  */
 
-#ifndef BOOST_SCOPE_POSIX_FD_RESOURCE_HPP_INCLUDED_
-#define BOOST_SCOPE_POSIX_FD_RESOURCE_HPP_INCLUDED_
+#ifndef BOOST_SCOPE_FD_RESOURCE_HPP_INCLUDED_
+#define BOOST_SCOPE_FD_RESOURCE_HPP_INCLUDED_
 
 #include <boost/scope/detail/config.hpp>
 
-#if !defined(BOOST_HAS_UNISTD_H)
-#error "Boost.Scope: This header is only compatible with POSIX systems"
-#endif
-
+#if !defined(BOOST_WINDOWS)
 #include <unistd.h>
 #if defined(hpux) || defined(_hpux) || defined(__hpux)
 #include <cerrno>
 #endif
+#else // !defined(BOOST_WINDOWS)
+#include <io.h>
+#endif // !defined(BOOST_WINDOWS)
 
 #include <boost/scope/detail/header.hpp>
 
@@ -35,8 +35,8 @@
 namespace boost {
 namespace scope {
 
-//! POSIX file descriptor resource traits
-struct posix_fd_resource_traits
+//! POSIX-like file descriptor resource traits
+struct fd_resource_traits
 {
     //! Creates a default fd value
     static int make_default() noexcept
@@ -51,13 +51,15 @@ struct posix_fd_resource_traits
     }
 };
 
-//! POSIX file descriptor deleter
-struct posix_fd_deleter
+//! POSIX-like file descriptor deleter
+struct fd_deleter
 {
     typedef void result_type;
 
     result_type operator() (int fd) const noexcept
     {
+#if !defined(BOOST_WINDOWS)
+#if defined(hpux) || defined(_hpux) || defined(__hpux)
         // Some systems don't close the file descriptor in case if the thread is interrupted by a signal and close(2) returns EINTR.
         // Other (most) systems do close the file descriptor even when when close(2) returns EINTR, and attempting to close it
         // again could close a different file descriptor that was opened by a different thread.
@@ -65,7 +67,6 @@ struct posix_fd_deleter
         // Future POSIX standards will likely fix this by introducing posix_close (see https://www.austingroupbugs.net/view.php?id=529)
         // and prohibiting returning EINTR from close(2), but we still have to support older systems where this new behavior is not available and close(2)
         // behaves differently between systems.
-#if defined(hpux) || defined(_hpux) || defined(__hpux)
         int res;
         while (true)
         {
@@ -82,6 +83,9 @@ struct posix_fd_deleter
 #else
         ::close(fd);
 #endif
+#else // !defined(BOOST_WINDOWS)
+        ::_close(fd);
+#endif // !defined(BOOST_WINDOWS)
     }
 };
 
@@ -90,4 +94,4 @@ struct posix_fd_deleter
 
 #include <boost/scope/detail/footer.hpp>
 
-#endif // BOOST_SCOPE_POSIX_FD_RESOURCE_HPP_INCLUDED_
+#endif // BOOST_SCOPE_FD_RESOURCE_HPP_INCLUDED_

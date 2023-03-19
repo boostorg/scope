@@ -14,10 +14,11 @@
 [c++]
 
 [/ Links to external resources /]
-[def __boost_config__ [@http://www.boost.org/doc/libs/release/libs/config/doc/html/index.html Boost.Config]]
+[def __boost_config__ [@https://www.boost.org/doc/libs/release/libs/config/doc/html/index.html Boost.Config]]
+[def __boost_core__ [@https://www.boost.org/doc/libs/release/libs/core/doc/html/index.html Boost.Core]]
 [def __boost_function__ [@https://www.boost.org/doc/libs/release/doc/html/function.html Boost.Function]]
-[def __boost_scope_exit__ [@http://www.boost.org/doc/libs/release/libs/scope_exit/doc/html/index.html Boost.ScopeExit]]
-[def __boost_smart_ptr__ [@http://www.boost.org/doc/libs/release/libs/smart_ptr/doc/html/smart_ptr.html Boost.SmartPtr]]
+[def __boost_scope_exit__ [@https://www.boost.org/doc/libs/release/libs/scope_exit/doc/html/index.html Boost.ScopeExit]]
+[def __boost_smart_ptr__ [@https://www.boost.org/doc/libs/release/libs/smart_ptr/doc/html/smart_ptr.html Boost.SmartPtr]]
 
 [template github_issue[key][@https://github.com/boostorg/scope/issues/[key] #[key]]]
 [template github_pr[key][@https://github.com/boostorg/scope/pull/[key] PR#[key]]]
@@ -209,7 +210,7 @@ The library requires a C++11 compiler at the minimum. For certain fetures, C++17
 * clang 3.5 and newer
 * MSVC 14.0 and newer
 
-Except for the POSIX file descriptor support, which is only available on POSIX systems, the library components are agnostic to the operating system.
+The library components are agnostic to the operating system.
 
 [endsect]
 

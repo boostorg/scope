@@ -6,17 +6,17 @@
  * Copyright (c) 2023 Andrey Semashev
  */
 /*!
- * \file scope/unique_posix_fd.hpp
+ * \file scope/unique_fd.hpp
  *
- * This header contains definition of \c unique_posix_fd type.
+ * This header contains definition of \c unique_fd type.
  */
 
-#ifndef BOOST_SCOPE_UNIQUE_POSIX_FD_HPP_INCLUDED_
-#define BOOST_SCOPE_UNIQUE_POSIX_FD_HPP_INCLUDED_
+#ifndef BOOST_SCOPE_UNIQUE_FD_HPP_INCLUDED_
+#define BOOST_SCOPE_UNIQUE_FD_HPP_INCLUDED_
 
 #include <boost/scope/detail/config.hpp>
 #include <boost/scope/unique_resource.hpp>
-#include <boost/scope/posix_fd_resource.hpp>
+#include <boost/scope/fd_resource.hpp>
 #include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
@@ -26,12 +26,12 @@
 namespace boost {
 namespace scope {
 
-//! Unique POSIX file descriptor resource
-typedef unique_resource< int, posix_fd_deleter, posix_fd_resource_traits > unique_posix_fd;
+//! Unique POSIX-like file descriptor resource
+typedef unique_resource< int, fd_deleter, fd_resource_traits > unique_fd;
 
 } // namespace scope
 } // namespace boost
 
 #include <boost/scope/detail/footer.hpp>
 
-#endif // BOOST_SCOPE_UNIQUE_POSIX_FD_HPP_INCLUDED_
+#endif // BOOST_SCOPE_UNIQUE_FD_HPP_INCLUDED_

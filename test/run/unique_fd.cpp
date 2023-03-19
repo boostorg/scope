@@ -6,29 +6,37 @@
  * Copyright (c) 2023 Andrey Semashev
  */
 /*!
- * \file   unique_posix_fd.cpp
+ * \file   unique_fd.cpp
  * \author Andrey Semashev
  *
- * \brief  This file contains tests for \c unique_posix_fd.
+ * \brief  This file contains tests for \c unique_fd.
  */
 
 #include <boost/config.hpp>
 
-#if defined(BOOST_HAS_UNISTD_H)
-
-#include <boost/scope/unique_posix_fd.hpp>
+#include <boost/scope/unique_fd.hpp>
 #include <boost/core/lightweight_test.hpp>
 
+#if defined(BOOST_WINDOWS)
+#include <io.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <cerrno>
 #include <cstdio>
 
+#if defined(BOOST_WINDOWS)
+#define open _open
+#define O_RDONLY _O_RDONLY
+#define stat _stat
+#define fstat _fstat
+#endif // defined(BOOST_WINDOWS)
+
 int main(int argc, char* args[])
 {
     {
-        boost::scope::unique_posix_fd ur;
+        boost::scope::unique_fd ur;
         BOOST_TEST_LT(ur.get(), 0);
         BOOST_TEST(!ur.allocated());
     }
@@ -37,7 +45,7 @@ int main(int argc, char* args[])
     {
         int fd = 0;
         {
-            boost::scope::unique_posix_fd ur(::open(args[0], O_RDONLY));
+            boost::scope::unique_fd ur(::open(args[0], O_RDONLY));
             BOOST_TEST_GE(ur.get(), 0);
             BOOST_TEST(ur.allocated());
             fd = ur.get();
@@ -56,13 +64,3 @@ int main(int argc, char* args[])
 
     return boost::report_errors();
 }
-
-#else // !defined(BOOST_HAS_UNISTD_H)
-
-int main()
-{
-    // This test is not supported on non-POSIX systems
-    return 0;
-}
-
-#endif // !defined(BOOST_HAS_UNISTD_H)
