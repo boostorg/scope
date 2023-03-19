@@ -35,4 +35,115 @@ be available if those requirements aren't met. The requirements are listed for e
 reference. Although not strictly required, it is generally highly recommended that calling a deleter on a resource doesn't throw exceptions
 and is marked `noexcept`, as the deleter will often be called from the [class_scope_unique_resource] destructor.
 
+Let's consider a usage example.
+
+    // A deleter for POSIX-like file descriptors
+    struct fd_deleter
+    {
+        void operator() (int fd) const noexcept
+        {
+            if (fd >= 0)
+                close(fd);
+        }
+    };
+
+    // Writes a string to a file
+    void write_string(std::string const& filename, std::string const& str)
+    {
+        // Create a unique resource for a file
+        boost::scope::unique_resource< int, fd_deleter > file(open(filename.c_str(), O_CREAT | O_WRONLY));
+        if (file.get() < 0)
+        {
+            int err = errno;
+            throw std::system_error(err, std::generic_category(), "Failed to open file " + filename);
+        }
+
+        // Use it to write data to the file
+        const char* p = str.data();
+        std::size_t size_left = str.size();
+        while (size_left > 0)
+        {
+            ssize_t written = write(file.get(), p, size_left);
+            if (written < 0)
+            {
+                int err = errno;
+                if (err == EINTR)
+                    continue;
+                throw std::system_error(err, std::generic_category(), "Failed to write data");
+            }
+
+            p += written;
+            size_left -= written;
+        }
+    }
+
+[note POSIX-like file descriptors are supported on Windows through non-standard APIs like
+[@https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/open-wopen `_open`],
+[@https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/close `_close`],
+[@https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/write `_write`] and others. It is often possible to port a program
+performing simple IO with regular files and file descriptors to Windows by simple renaming. However, here and below we will be using
+the standard POSIX nomenclature.]
+
+In this example, there are several points to note. First, the `fd_deleter` function object checks if the file descriptor is valid before
+passing it to `close`. This is necessary in this piece of code because we unconditionally initialize [class_scope_unique_resource] object
+with the value returned by `open`, which may be -1 indicating an error. By default, [class_scope_unique_resource] doesn't discriminate
+valid (i.e. allocated) resource values from invalid (i.e. unallocated), which means that from its perspective the value of -1 is a file
+descriptor that needs to be freed by calling the deleter on it. Therefore, the deleter must be prepared to handle resource values that are
+unallocated. Later on we will see how to change this.
+
+[tip Besides the resource value, you can specify the deleter object as the second argument of the [class_scope_unique_resource] constructor.
+In fact, the second argument is mandatory if the deleter is not default-constructible or its default constructor may throw. This is
+necessary to be able to call the deleter on the passed resource value, should the construction of either the resource or the deleter throw.
+This ensures that the resource doesn't leak in case if [class_scope_unique_resource] initialization fails.]
+
+Second, we still need to check if opening the file succeeded before using it. Since [class_scope_unique_resource] in this example is always
+constructed in allocated state, we have to check the file descriptor value for being negative. In order to access the resource value one
+can use the `get` method of [class_scope_unique_resource].
+
+Lastly, whether `write_string` returns normally or via an exception, [class_scope_unique_resource] will close the file descriptor on
+destruction.
+
+We can improve this example by making [class_scope_unique_resource] initialization automatically check for the file descriptor validity.
+
+    // A deleter for POSIX-like file descriptors
+    struct fd_deleter
+    {
+        void operator() (int fd) const noexcept
+        {
+            close(fd);
+        }
+    };
+
+    // Writes a string to a file
+    void write_string(std::string const& filename, std::string const& str)
+    {
+        // Create a unique resource for a file
+        auto file = boost::scope::make_unique_resource_checked(
+            open(filename.c_str(), O_CREAT | O_WRONLY)
+            -1,
+            fd_deleter());
+        if (!file.allocated())
+        {
+            int err = errno;
+            throw std::system_error(err, std::generic_category(), "Failed to open file " + filename);
+        }
+
+        // Use it to write data to the file
+        // ...
+    }
+
+Here, the `make_unique_resource_checked` helper function performs the following:
+
+# If the resource value, which is the first argument - the result of `open` call, is equal to the invalid resource value, which is the second
+  argument, creates and returns an unallocated [class_scope_unique_resource] object.
+# Otherwise, creates and returns an allocated [class_scope_unique_resource] object that wraps the result of `open` call.
+# In both cases, the third argument is used to initialize the deleter in the returned [class_scope_unique_resource] object.
+
+Note that if `open` fails and returns -1, the deleter is guaranteed not to be called on this resource value - neither by
+`make_unique_resource_checked` nor by [class_scope_unique_resource], not even if [class_scope_unique_resource] construction fails with an
+exception. This allows us to simplify `fd_deleter` and remove the check for `fd` being non-negative.
+
+Furthermore, since the returned [class_scope_unique_resource] object now properly indicates whether the resource is allocated or not,
+we can use the `allocated` member function to test it instead of checking the resource value. This makes the code more self-explanatory.
+
 [endsect]
