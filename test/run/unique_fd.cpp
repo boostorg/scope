@@ -26,6 +26,15 @@
 #include <cerrno>
 #include <cstdio>
 
+#if defined(_MSC_VER) && defined(_CPPLIB_VER) && defined(_DEBUG)
+#include <cstdlib>
+#include <crtdbg.h>
+
+void noop_invalid_parameter(const wchar_t* expression, const wchar_t* function, const wchar_t* file, unsigned int line, uintptr_t pReserved)
+{
+}
+#endif // defined(_MSC_VER) && defined(_CPPLIB_VER) && defined(_DEBUG)
+
 #if defined(BOOST_WINDOWS)
 #define open _open
 #define O_RDONLY _O_RDONLY
@@ -35,6 +44,12 @@
 
 int main(int argc, char* args[])
 {
+#if defined(_MSC_VER) && defined(_CPPLIB_VER) && defined(_DEBUG)
+    // Disable assertion failure message boxes and aborts on invalid parameters
+    _set_invalid_parameter_handler(&noop_invalid_parameter);
+    _CrtSetReportMode(_CRT_ASSERT, 0);
+#endif
+
     {
         boost::scope::unique_fd ur;
         BOOST_TEST_LT(ur.get(), 0);
