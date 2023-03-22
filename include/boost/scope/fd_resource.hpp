@@ -56,6 +56,7 @@ struct fd_deleter
 {
     typedef void result_type;
 
+    //! Closes the file descriptor
     result_type operator() (int fd) const noexcept
     {
 #if !defined(BOOST_WINDOWS)

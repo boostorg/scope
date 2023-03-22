@@ -29,11 +29,19 @@ through the [class_scope_unique_resource] wrapper. For example, it is not allowe
 state or explicitly freeing the resource circumventing the resource wrapper, as the wrapper will still invoke the deleter on the then-invalid
 resource.
 
-The deleter must be a function object type that is callable on an lvalue of the resource type. The deleter must be copy-constructible. Some
-of the [class_scope_unique_resource] operations impose additional requirements on the resource and deleter types; such operations will not
-be available if those requirements aren't met. The requirements are listed for each operation in the [class_scope_unique_resource] class
-reference. Although not strictly required, it is generally highly recommended that calling a deleter on a resource doesn't throw exceptions
-and is marked `noexcept`, as the deleter will often be called from the [class_scope_unique_resource] destructor.
+The deleter must be a function object type that is callable on an lvalue of the resource type. The deleter must be copy-constructible.
+Although not strictly required, it is generally highly recommended that calling a deleter on a resource doesn't throw exceptions and is marked
+`noexcept`, as the deleter will often be called from the [class_scope_unique_resource] destructor.
+
+Like `std::unique_ptr`, [class_scope_unique_resource] is not copyable and supports a number of other operations, such as move construction and
+assignment, `reset`, `release` and `swap` with the similar semantics. Some of the operations impose additional requirements on the resource and
+deleter types; such operations will not be available if those requirements aren't met. For example, `swap` is only supported if both
+the resource and deleter types are swappable, and at least one of those types is nothrow swappable (the last part is necessary to implement the
+[@https://en.cppreference.com/w/cpp/language/exceptions strong exception guarantee] for the `swap` operation). The requirements are listed for
+each operation in the [class_scope_unique_resource] class reference.
+
+[tip If the resource type is dereferenceable (i.e. supports unary `operator*`), [class_scope_unique_resource] also provides `operator*` and
+`operator->`, making it act more like a smart-pointer.]
 
 Let's consider a usage example.
 
@@ -100,9 +108,6 @@ Second, we still need to check if opening the file succeeded before using it. Si
 constructed in allocated state, we have to check the file descriptor value for being negative. In order to access the resource value one
 can use the `get` method of [class_scope_unique_resource].
 
-Lastly, whether `write_string` returns normally or via an exception, [class_scope_unique_resource] will close the file descriptor on
-destruction.
-
 We can improve this example by making [class_scope_unique_resource] initialization automatically check for the file descriptor validity.
 
     // A deleter for POSIX-like file descriptors
@@ -134,9 +139,9 @@ We can improve this example by making [class_scope_unique_resource] initializati
 
 Here, the `make_unique_resource_checked` helper function performs the following:
 
-# If the resource value, which is the first argument - the result of `open` call, is equal to the invalid resource value, which is the second
-  argument, creates and returns an unallocated [class_scope_unique_resource] object.
-# Otherwise, creates and returns an allocated [class_scope_unique_resource] object that wraps the result of `open` call.
+# If the resource value, which is the first argument - the result of the `open` call, is equal to the invalid resource value, which is
+  the second argument, creates and returns an unallocated [class_scope_unique_resource] object.
+# Otherwise, creates and returns an allocated [class_scope_unique_resource] object that wraps the result of the `open` call.
 # In both cases, the third argument is used to initialize the deleter in the returned [class_scope_unique_resource] object.
 
 Note that if `open` fails and returns -1, the deleter is guaranteed not to be called on this resource value - neither by
@@ -144,6 +149,89 @@ Note that if `open` fails and returns -1, the deleter is guaranteed not to be ca
 exception. This allows us to simplify `fd_deleter` and remove the check for `fd` being non-negative.
 
 Furthermore, since the returned [class_scope_unique_resource] object now properly indicates whether the resource is allocated or not,
-we can use the `allocated` member function to test it instead of checking the resource value. This makes the code more self-explanatory.
+we can use the `allocated` member function to test it instead of checking the resource value. This makes the code more readable.
+
+[note In order to avoid confusion with the [class_scope_unique_resource] object being always allocated after construction with a resource
+value, it is recommended to always use either the `make_unique_resource_checked` factory function or resource traits, as described in
+the next section.]
+
+[section:resource_traits Resource traits]
+
+The [class_scope_unique_resource] class template also supports an optional third template parameter, which can be used to specify a resource
+traits class. Resource traits provide [class_scope_unique_resource] with additional knowledge about the resource features that allow for
+a more efficient implementation. This is useful when there is one or more resource value that is considered unallocated, that is such a value
+that does not identify an allocated resource that needs to be freed. For example, for pointer resource types, null is usually considered as
+the unallocated value, and for POSIX-like file descriptors, all negative values are unallocated values, since no valid file descriptor
+can be negative.
+
+If specified, resource traits must be a class with the following public static member functions:
+
+* `bool is_allocated(R const& r) noexcept` - must return `true` if the resource value `r` is an allocated resource value and `false` otherwise.
+* `R make_default() noexcept` - must return an unallocated resource value that can be used to initialize the default-constructed
+  [class_scope_unique_resource] object. Note that calling `is_allocated` on the value returned by `make_default` must always return `false`.
+
+Note that all operations must be non-throwing. When the conforming resource traits are provided, [class_scope_unique_resource] behavior changes
+as follows:
+
+* [class_scope_unique_resource] will no longer separately track whether it is in allocated state or not and instead will use `is_allocated`
+  on the wrapped resource value for this. In particular, this means that constructing [class_scope_unique_resource] from a resource value
+  may now produce a wrapper in an unallocated state, if the resource value is an unallocated value.
+* Default constructor, `reset`, move constructor and move assignment of [class_scope_unique_resource] will use `make_default` to initialize
+  the resource value in the unallocated wrapper (for move operations - in the move source).
+
+Using the resource traits allow us to further improve the example given in the previous section.
+
+    // A deleter for POSIX-like file descriptors
+    struct fd_deleter
+    {
+        void operator() (int fd) const noexcept
+        {
+            close(fd);
+        }
+    };
+
+    // Resource traits for POSIX-like file descriptors
+    struct fd_resource_traits
+    {
+        static bool is_allocated(int fd) noexcept
+        {
+            return fd >= 0;
+        }
+
+        static bool make_default() noexcept
+        {
+            // Return any unallocated resource value
+            return -1;
+        }
+    };
+
+    // A shorthand typedef for unique file descriptor wrappers
+    typedef boost::scope::unique_resource< int, fd_deleter, fd_resource_traits > unique_fd;
+
+    // Writes a string to a file
+    void write_string(std::string const& filename, std::string const& str)
+    {
+        // Create a unique resource for a file
+        unique_fd file(open(filename.c_str(), O_CREAT | O_WRONLY));
+        if (!file.allocated())
+        {
+            int err = errno;
+            throw std::system_error(err, std::generic_category(), "Failed to open file " + filename);
+        }
+
+        // Use it to write data to the file
+        // ...
+    }
+
+In this piece of code, we no longer need to use `make_unique_resource_checked` every time we open a file (or otherwise create a file
+descriptor), and therefore we don't have to duplicate the invalid file descriptor value or the deleter - this information is provided
+by `fd_resource_traits` and conveniently embedded in the `unique_fd` type. As before, if `open` fails and returns -1, the constructed
+[class_scope_unique_resource] object will be in an unallocated state, meaning that we can use `allocated` accessor, and that the deleter
+will only be called if `open` succeeded.
+
+[tip The `fd_deleter`, `fd_resource_traits` and `unique_fd` types presented in the examples above are provided by the library out of
+the box in [boost_scope_fd_resource_hpp] and [boost_scope_unique_fd_hpp] headers.]
+
+[endsect]
 
 [endsect]
