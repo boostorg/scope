@@ -281,10 +281,6 @@ inline scope_fail< Func > make_scope_fail(Func&& func, bool active = true)
 }
 
 } // namespace scope
-
-using scope::scope_fail;
-using scope::make_scope_fail;
-
 } // namespace boost
 
 #include <boost/scope/detail/footer.hpp>

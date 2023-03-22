@@ -146,8 +146,6 @@ scope_final(Func) -> scope_final< Func >;
 
 } // namespace scope
 
-using scope::scope_final;
-
 //! \cond
 #if defined(BOOST_MSVC)
 #define BOOST_SCOPE_DETAIL_UNIQUE_VAR_TAG __COUNTER__

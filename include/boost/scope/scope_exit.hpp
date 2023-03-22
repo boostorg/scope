@@ -260,10 +260,6 @@ inline scope_exit< Func > make_scope_exit(Func&& func, bool active = true)
 }
 
 } // namespace scope
-
-using scope::scope_exit;
-using scope::make_scope_exit;
-
 } // namespace boost
 
 #include <boost/scope/detail/footer.hpp>

@@ -39,10 +39,6 @@ make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& d
     >::value));
 
 } // namespace scope
-
-using scope::unique_resource;
-using scope::make_unique_resource_checked;
-
 } // namespace boost
 
 #include <boost/scope/detail/footer.hpp>

@@ -231,10 +231,6 @@ inline scope_success< Func > make_scope_success(Func&& func, bool active = true)
 }
 
 } // namespace scope
-
-using scope::scope_success;
-using scope::make_scope_success;
-
 } // namespace boost
 
 #include <boost/scope/detail/footer.hpp>
