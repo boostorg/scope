@@ -19,6 +19,7 @@
 #include <boost/scope/detail/is_not_like.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
+#include <boost/scope/detail/type_traits/is_nothrow_invocable.hpp>
 #include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
@@ -133,7 +134,7 @@ public:
      *
      * **Throws:** Nothing, unless invoking the callable throws.
      */
-    ~scope_final() noexcept(noexcept(std::declval< Func& >()()))
+    ~scope_final() noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(detail::is_nothrow_invocable< Func& >::value))
     {
         m_data.m_func();
     }

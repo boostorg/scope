@@ -15,12 +15,13 @@
 #define BOOST_SCOPE_SCOPE_SUCCESS_HPP_INCLUDED_
 
 #include <type_traits>
-#include <boost/core/uncaught_exceptions.hpp>
 #include <boost/scope/detail/config.hpp>
+#include <boost/scope/exception_checker.hpp>
+#include <boost/scope/scope_check.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
-#include <boost/scope/detail/compact_storage.hpp>
-#include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
+#include <boost/scope/detail/type_traits/is_invocable.hpp>
+#include <boost/scope/detail/type_traits/is_nothrow_invocable.hpp>
 #include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
@@ -30,7 +31,7 @@
 namespace boost {
 namespace scope {
 
-template< typename Func >
+template< typename Func, typename Cond = exception_checker >
 class scope_success;
 
 namespace detail {
@@ -39,67 +40,93 @@ namespace detail {
 template< typename T >
 using is_not_like_scope_success = detail::is_not_like< T, scope_success >;
 
+template< typename Func >
+class logical_not;
+
+template< typename T >
+using is_not_like_logical_not = detail::is_not_like< T, logical_not >;
+
+template< typename Func >
+class logical_not
+{
+public:
+    typedef bool result_type;
+
+private:
+    Func m_func;
+
+public:
+    template<
+        bool Requires = std::is_default_constructible< Func >::value,
+        typename = typename std::enable_if< Requires >::type
+    >
+    logical_not() noexcept(std::is_nothrow_default_constructible< Func >::value) :
+        m_func()
+    {
+    }
+
+    template<
+        typename F,
+        typename = typename std::enable_if< detail::conjunction<
+            std::is_constructible< Func, F >,
+            detail::is_not_like_logical_not< F >
+        >::value >::type
+    >
+    explicit logical_not(F&& func) noexcept(std::is_nothrow_constructible< Func, F >::value) :
+        m_func(static_cast< F&& >(func))
+    {
+    }
+
+    result_type operator()() const noexcept(detail::is_nothrow_invocable< Func const& >::value)
+    {
+        return !m_func();
+    }
+};
+
 } // namespace detail
 
 /*!
- * \brief Scope exit guard that invokes a function upon leaving the scope normally.
+ * \brief Scope exit guard that invokes a function upon leaving the scope with
+ *        a failure condition not satisfied.
  *
- * A scope exit guard wraps a function object callable with no arguments
- * that can be one of:
+ * The scope guard wraps two function objects: the scope guard action and
+ * a failure condition for invoking the action. Both function objects must
+ * be callable with no arguments and can be one of:
  *
  * \li A user-defined class with a public `operator()`.
  * \li An lvalue reference to such class.
  * \li An lvalue reference to function taking no arguments.
  *
- * The scope guard can be in either active or inactive state. By default,
- * the constructed scope guard is active. When active, and the scope is
- * being left normally (not via an exception), the scope guard invokes
- * the wrapped function object on destruction. If inactive, the scope
- * guard does not call the wrapped function object.
+ * Additionally, the failure condition function object `operator()` must not
+ * throw, as otherwise the action function object may not be called. If not
+ * specified, the default failure condition checks whether the scope is left
+ * due to an exception - the action function object will only be called if
+ * the scope is left normally.
  *
- * The scope guard can be made inactive by moving-from the scope guard
- * or calling `set_active(false)` or `release()`. An inactive
- * scope guard can be made active by calling `set_active(true)`.
- * If a moved-from scope guard is active on destruction, the behavior
- * is undefined.
+ * \sa scope_check
+ * \sa scope_fail
  */
-template< typename Func >
-class scope_success
+template< typename Func, typename Cond >
+class scope_success :
+    public scope_check< Func, detail::logical_not< Cond > >
 {
 //! \cond
 private:
-    struct data :
-        public detail::compact_storage< Func >
-    {
-        typedef detail::compact_storage< Func > func_base;
-
-        const unsigned int m_uncaught_count;
-        bool m_active;
-
-        template< typename F, typename = typename std::enable_if< std::is_constructible< Func, F >::value >::type >
-        explicit data(F&& func, unsigned int uncaught_count, bool active) noexcept(std::is_nothrow_constructible< Func, F >::value) :
-            func_base(static_cast< F&& >(func)),
-            m_uncaught_count(uncaught_count),
-            m_active(active)
-        {
-        }
-    };
-
-    data m_data;
+    typedef scope_check< Func, detail::logical_not< Cond > > base_type;
 
 //! \endcond
 public:
     /*!
      * \brief Constructs a scope guard with a given callable function object.
      *
-     * **Requires:** \c Func is constructible from \a func.
+     * **Requires:** \c Func is constructible from \a func. \c Cond is nothrow default-constructible.
      *
-     * **Effects:** If \c Func is nothrow constructible from `F&&` then constructs \c Func from
-     *              `std::forward< F >(func)`, otherwise constructs from `func`.
+     * **Effects:** Constructs the scope guard as if by calling
+     *              `scope_success(std::forward< F >(func), Cond(), active)`.
      *
-     * **Throws:** Nothing, unless construction of the function object throws.
+     * **Throws:** Nothing, unless construction of the function objects throw.
      *
-     * \param func The callable function object to invoke on destruction.
+     * \param func The callable action function object to invoke on destruction.
      * \param active Indicates whether the scope guard should be active upon construction.
      *
      * \post `this->active() == active`
@@ -108,28 +135,69 @@ public:
         typename F
         //! \cond
         , typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, unsigned int, bool >,
+            std::is_constructible< base_type, F, bool >,
             detail::is_not_like_scope_success< F >
         >::value >::type
         //! \endcond
     >
     explicit scope_success(F&& func, bool active = true)
-        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
-            std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< F, Func >::type, unsigned int, bool >::value
-        )) :
-        m_data(static_cast< typename detail::move_or_copy_construct_ref< F, Func >::type >(func), boost::core::uncaught_exceptions(), active)
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(std::is_nothrow_constructible< base_type, F, bool >::value)) :
+        base_type(static_cast< F&& >(func), active)
+    {
+    }
+
+    /*!
+     * \brief Constructs a scope guard with a given callable action and failure condition function objects.
+     *
+     * **Requires:** \c Func is constructible from \a func. \c Cond is constructible from \a cond.
+     *
+     * **Effects:** If \c Func is nothrow constructible from `F&&` then constructs \c Func from
+     *              `std::forward< F >(func)`, otherwise constructs from `func`. If \c Cond is
+     *              nothrow constructible from `C&&` then constructs \c Cond from
+     *              `std::forward< C >(cond)`, otherwise constructs from `cond`.
+     *
+     *              If \c Func or \c Cond construction throws and \a active is \c true, invokes
+     *              \a cond and, if it returns \c true, \a func before returning with the exception.
+     *
+     * **Throws:** Nothing, unless construction of the function objects throw.
+     *
+     * \param func The callable action function object to invoke on destruction.
+     * \param cond The callable failure condition function object.
+     * \param active Indicates whether the scope guard should be active upon construction.
+     *
+     * \post `this->active() == active`
+     */
+    template<
+        typename F,
+        typename C
+        //! \cond
+        , typename = typename std::enable_if< std::is_constructible< base_type, F, C, bool >::value >::type
+        //! \endcond
+    >
+    explicit scope_success(F&& func, C&& cond, bool active = true)
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(std::is_nothrow_constructible< base_type, F, C, bool >::value)) :
+        base_type(static_cast< F&& >(func), static_cast< C&& >(cond), active)
     {
     }
 
     /*!
      * \brief Move-constructs a scope guard.
      *
-     * **Requires:** \c Func is nothrow move-constructible or copy-constructible.
+     * **Requires:** \c Func and \c Cond are nothrow move-constructible or copy-constructible.
      *
      * **Effects:** If \c Func is nothrow move-constructible then move-constructs \c Func from
-     *              a member of \a that, otherwise copy-constructs.
+     *              a member of \a that, otherwise copy-constructs \c Func. If \c Cond is nothrow
+     *              move-constructible then move-constructs \c Cond from a member of \a that,
+     *              otherwise copy-constructs \c Cond.
      *
-     * **Throws:** Nothing, unless move-construction of the function object throws.
+     *              If \c Func or \c Cond construction throws and `that.active() == true`, invokes
+     *              \c Cond object stored in \a that and, if it returns \c true, \a Func object
+     *              (either the newly constructed one, if its construction succeeded, or the original
+     *              one stored in \a that) before returning with the exception.
+     *
+     *              If the construction succeeds, marks \a that as inactive.
+     *
+     * **Throws:** Nothing, unless move-construction of the function objects throw.
      *
      * \param that Move source.
      *
@@ -137,97 +205,113 @@ public:
      */
     //! \cond
     template<
-        bool Requires = std::is_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, unsigned int, bool >::value,
+        bool Requires = std::is_move_constructible< base_type >::value,
         typename = typename std::enable_if< Requires >::type
     >
     //! \endcond
     scope_success(scope_success&& that)
-        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
-            std::is_nothrow_constructible< data, typename detail::move_or_copy_construct_ref< Func >::type, unsigned int, bool >::value
-        )) :
-        m_data(static_cast< typename detail::move_or_copy_construct_ref< Func >::type >(that.m_data.get()), that.m_data.m_uncaught_count, that.m_data.m_active)
+        noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(std::is_nothrow_move_constructible< base_type >::value)) :
+        base_type(static_cast< base_type&& >(that))
     {
-        that.m_data.m_active = false;
     }
 
     scope_success& operator= (scope_success&&) = delete;
 
     scope_success(scope_success const&) = delete;
     scope_success& operator= (scope_success const&) = delete;
-
-    /*!
-     * \brief If `active() == true`, and the scope guard is not destroyed via an exception, invokes
-     *        the wrapped callable function object. Destroys the callable.
-     *
-     * **Throws:** Nothing, unless invoking the callable throws.
-     */
-    ~scope_success() noexcept(noexcept(std::declval< Func& >()()))
-    {
-        if (BOOST_LIKELY(m_data.m_active && boost::core::uncaught_exceptions() <= m_data.m_uncaught_count))
-            m_data.get()();
-    }
-
-    /*!
-     * \brief Returns \c true if the scope guard is active, otherwise \c false.
-     *
-     * **Throws:** Nothing.
-     */
-    bool active() const noexcept
-    {
-        return m_data.m_active;
-    }
-
-    /*!
-     * \brief Activates or deactivates the scope guard.
-     *
-     * **Throws:** Nothing.
-     *
-     * \param active The active status to set.
-     *
-     * \post `this->active() == active`
-     */
-    void set_active(bool active) noexcept
-    {
-        m_data.m_active = active;
-    }
-
-    /*!
-     * \brief Deactivates the scope guard.
-     *
-     * **Effects:** As if `set_active(false)`.
-     *
-     * **Throws:** Nothing.
-     *
-     * \post `this->active() == false`
-     */
-    void release() noexcept
-    {
-        m_data.m_active = false;
-    }
 };
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 template< typename Func >
 scope_success(Func) -> scope_success< Func >;
-
 template< typename Func >
-scope_success(scope_success< Func >&&) -> scope_success< Func >;
+scope_success(Func, bool) -> scope_success< Func >;
+template<
+    typename Func,
+    typename Cond,
+    typename = typename std::enable_if< detail::is_invocable< Cond const& >::value >::type
+>
+scope_success(Func, Cond) -> scope_success< Func, Cond >;
+template<
+    typename Func,
+    typename Cond,
+    typename = typename std::enable_if< detail::is_invocable< Cond const& >::value >::type
+>
+scope_success(Func, Cond, bool) -> scope_success< Func, Cond >;
+
+template< typename Func, typename Cond >
+scope_success(scope_success< Func, Cond >&&) -> scope_success< Func, Cond >;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 
 /*!
- * \brief Creates a scope success guard with a given callable function object.
+ * \brief Creates a scope fail guard with a given callable function object.
  *
  * **Effects:** Constructs a scope guard as if by calling
- *              `scope_success< Func >(std::forward< Func >(func), active)`.
+ *              `scope_success< std::remove_cvref_t< F > >(std::forward< F >(func), active)`.
  *
  * \param func The callable function object to invoke on destruction.
  * \param active Indicates whether the scope guard should be active upon construction.
  */
-template< typename Func >
-inline scope_success< Func > make_scope_success(Func&& func, bool active = true)
-    noexcept(std::is_nothrow_constructible< scope_success< Func >, Func, bool >::value)
+template< typename F >
+inline scope_success<
+    typename std::remove_cv< typename std::remove_reference< F >::type >::type
+> make_scope_success(F&& func, bool active = true)
+    noexcept(std::is_nothrow_constructible<
+        scope_success<
+            typename std::remove_cv< typename std::remove_reference< F >::type >::type
+        >,
+        F,
+        bool
+    >::value)
 {
-    return scope_success< Func >(static_cast< Func&& >(func), active);
+    return scope_success<
+        typename std::remove_cv< typename std::remove_reference< F >::type >::type
+    >(static_cast< F&& >(func), active);
+}
+
+/*!
+ * \brief Creates a scope fail with given callable function objects.
+ *
+ * **Effects:** Constructs a scope guard as if by calling
+ *              `scope_success< std::remove_cvref_t< F >,
+ *              std::remove_cvref_t< C > >(std::forward< F >(func),
+ *              std::forward< C >(cond), active)`.
+ *
+ * \param func The callable action function object to invoke on destruction.
+ * \param cond The callable failure condition function object.
+ * \param active Indicates whether the scope guard should be active upon construction.
+ */
+template< typename F, typename C >
+inline
+#if !defined(BOOST_SCOPE_DOXYGEN)
+typename std::enable_if<
+    detail::is_invocable< C const& >::value,
+    scope_success<
+        typename std::remove_cv< typename std::remove_reference< F >::type >::type,
+        typename std::remove_cv< typename std::remove_reference< C >::type >::type
+    >
+>::type
+#else
+scope_success<
+    typename std::remove_cv< typename std::remove_reference< F >::type >::type,
+    typename std::remove_cv< typename std::remove_reference< C >::type >::type
+>
+#endif
+make_scope_success(F&& func, C&& cond, bool active = true)
+    noexcept(std::is_nothrow_constructible<
+        scope_success<
+            typename std::remove_cv< typename std::remove_reference< F >::type >::type,
+            typename std::remove_cv< typename std::remove_reference< C >::type >::type
+        >,
+        F,
+        C,
+        bool
+    >::value)
+{
+    return scope_success<
+        typename std::remove_cv< typename std::remove_reference< F >::type >::type,
+        typename std::remove_cv< typename std::remove_reference< C >::type >::type
+    >(static_cast< F&& >(func), static_cast< C&& >(cond), active);
 }
 
 } // namespace scope
@@ -235,4 +319,4 @@ inline scope_success< Func > make_scope_success(Func&& func, bool active = true)
 
 #include <boost/scope/detail/footer.hpp>
 
-#endif // BOOST_SCOPE_SCOPE_SUCCESS_HPP_INCLUDED_
+#endif // BOOST_SCOPE_scope_success_HPP_INCLUDED_

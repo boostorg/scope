@@ -13,11 +13,13 @@
  */
 
 #include <boost/scope/scope_success.hpp>
+#include <boost/scope/error_code_checker.hpp>
 #include <boost/core/lightweight_test.hpp>
 #include <boost/core/lightweight_test_trait.hpp>
 #include <boost/config.hpp>
 #include <utility>
 #include <stdexcept>
+#include <system_error>
 #include "function_types.hpp"
 
 int g_n = 0;
@@ -217,6 +219,62 @@ void check_throw()
     BOOST_TEST(func_destroyed);
 }
 
+void check_cond()
+{
+    int n = 0;
+    {
+        int err = 0;
+        boost::scope::scope_success< normal_func, boost::scope::error_code_checker< int > > guard{ normal_func(n), boost::scope::check_error_code(err) };
+        BOOST_TEST(guard.active());
+    }
+    BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    {
+        int err = 0;
+        boost::scope::scope_success< normal_func, boost::scope::error_code_checker< int > > guard{ normal_func(n), boost::scope::check_error_code(err) };
+        BOOST_TEST(guard.active());
+        err = -1;
+    }
+    BOOST_TEST_EQ(n, 0);
+
+    n = 0;
+    {
+        int err = 0;
+        boost::scope::scope_success< normal_func, boost::scope::error_code_checker< int > > guard{ normal_func(n), boost::scope::check_error_code(err), false };
+        BOOST_TEST(!guard.active());
+    }
+    BOOST_TEST_EQ(n, 0);
+
+    n = 0;
+    {
+        std::error_code err{};
+        boost::scope::scope_success< normal_func, boost::scope::error_code_checker< std::error_code > > guard{ normal_func(n), boost::scope::check_error_code(err) };
+        BOOST_TEST(guard.active());
+    }
+    BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    {
+        std::error_code err{};
+        boost::scope::scope_success< normal_func, boost::scope::error_code_checker< std::error_code > > guard{ normal_func(n), boost::scope::check_error_code(err) };
+        BOOST_TEST(guard.active());
+        err = std::make_error_code(std::errc::invalid_argument);
+    }
+    BOOST_TEST_EQ(n, 0);
+
+    n = 0;
+    try
+    {
+        int err = 0;
+        boost::scope::scope_success< normal_func, boost::scope::error_code_checker< int > > guard{ normal_func(n), boost::scope::check_error_code(err) };
+        BOOST_TEST(guard.active());
+        throw std::runtime_error("error");
+    }
+    catch (...) {}
+    BOOST_TEST_EQ(n, 1); // exception is not the failure condition, err was still 0 when the scope guard was destroyed
+}
+
 void check_deduction()
 {
     int n = 0;
@@ -235,6 +293,24 @@ void check_deduction()
     }
     BOOST_TEST_EQ(n, 0);
 
+    n = 0;
+    {
+        const normal_func func{ n };
+        auto guard = boost::scope::make_scope_success(func, true);
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_success< normal_func >);
+    }
+    BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    {
+        int err = 0;
+        auto guard = boost::scope::make_scope_success(normal_func(n), boost::scope::check_error_code(err));
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_success< normal_func, boost::scope::error_code_checker< int > >);
+    }
+    BOOST_TEST_EQ(n, 1);
+
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
     n = 0;
     {
@@ -246,7 +322,41 @@ void check_deduction()
 
     n = 0;
     {
+        boost::scope::scope_success guard{ normal_func(n), false };
+        BOOST_TEST(!guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_success< normal_func >);
+    }
+    BOOST_TEST_EQ(n, 0);
+
+    n = 0;
+    {
+        int err = 0;
+        boost::scope::scope_success guard{ normal_func(n), boost::scope::check_error_code(err) };
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_success< normal_func, boost::scope::error_code_checker< int > >);
+    }
+    BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    {
+        int err = 0;
+        boost::scope::scope_success guard{ normal_func(n), boost::scope::error_code_checker(err), true };
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_success< normal_func, boost::scope::error_code_checker< int > >);
+    }
+    BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    {
         boost::scope::scope_success guard([&n] { ++n; });
+        BOOST_TEST(guard.active());
+    }
+    BOOST_TEST_EQ(n, 1);
+
+    n = 0;
+    {
+        int err = 10;
+        boost::scope::scope_success guard([&n] { ++n; }, [&err]() noexcept { return err < 0; });
         BOOST_TEST(guard.active());
     }
     BOOST_TEST_EQ(n, 1);
@@ -266,6 +376,7 @@ int main()
 {
     check_normal();
     check_throw();
+    check_cond();
     check_deduction();
 
     return boost::report_errors();

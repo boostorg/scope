@@ -20,6 +20,7 @@
 #include <boost/scope/detail/compact_storage.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
+#include <boost/scope/detail/type_traits/is_nothrow_invocable.hpp>
 #include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
@@ -190,7 +191,7 @@ public:
      *
      * **Throws:** Nothing, unless invoking the callable throws.
      */
-    ~scope_exit() noexcept(noexcept(std::declval< Func& >()()))
+    ~scope_exit() noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(detail::is_nothrow_invocable< Func& >::value))
     {
         if (BOOST_LIKELY(m_data.m_active))
             m_data.get()();
@@ -238,6 +239,8 @@ public:
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 template< typename Func >
 scope_exit(Func) -> scope_exit< Func >;
+template< typename Func >
+scope_exit(Func, bool) -> scope_exit< Func >;
 
 template< typename Func >
 scope_exit(scope_exit< Func >&&) -> scope_exit< Func >;
@@ -247,16 +250,24 @@ scope_exit(scope_exit< Func >&&) -> scope_exit< Func >;
  * \brief Creates a scope exit guard with a given callable function object.
  *
  * **Effects:** Constructs a scope guard as if by calling
- *              `scope_exit< Func >(std::forward< Func >(func), active)`.
+ *              `scope_exit< std::remove_cvref_t< F > >(std::forward< F >(func), active)`.
  *
  * \param func The callable function object to invoke on destruction.
  * \param active Indicates whether the scope guard should be active upon construction.
  */
-template< typename Func >
-inline scope_exit< Func > make_scope_exit(Func&& func, bool active = true)
-    noexcept(std::is_nothrow_constructible< scope_exit< Func >, Func, bool >::value)
+template< typename F >
+inline scope_exit<
+    typename std::remove_cv< typename std::remove_reference< F >::type >::type
+> make_scope_exit(F&& func, bool active = true)
+    noexcept(std::is_nothrow_constructible<
+        scope_exit< typename std::remove_cv< typename std::remove_reference< F >::type >::type >,
+        F,
+        bool
+    >::value)
 {
-    return scope_exit< Func >(static_cast< Func&& >(func), active);
+    return scope_exit<
+        typename std::remove_cv< typename std::remove_reference< F >::type >::type
+    >(static_cast< F&& >(func), active);
 }
 
 } // namespace scope

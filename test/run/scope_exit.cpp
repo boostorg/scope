@@ -196,6 +196,15 @@ void check_deduction()
     }
     BOOST_TEST_EQ(n, 0);
 
+    n = 0;
+    {
+        const normal_func func{ n };
+        auto guard = boost::scope::make_scope_exit(func, true);
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< normal_func >);
+    }
+    BOOST_TEST_EQ(n, 1);
+
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
     n = 0;
     {
