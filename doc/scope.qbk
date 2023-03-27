@@ -17,8 +17,10 @@
 [def __boost_config__ [@https://www.boost.org/doc/libs/release/libs/config/doc/html/index.html Boost.Config]]
 [def __boost_core__ [@https://www.boost.org/doc/libs/release/libs/core/doc/html/index.html Boost.Core]]
 [def __boost_function__ [@https://www.boost.org/doc/libs/release/doc/html/function.html Boost.Function]]
+[def __boost_outcome__ [@https://www.boost.org/doc/libs/release/libs/outcome/doc/html/index.html Boost.Outcome]]
 [def __boost_scope_exit__ [@https://www.boost.org/doc/libs/release/libs/scope_exit/doc/html/index.html Boost.ScopeExit]]
 [def __boost_smart_ptr__ [@https://www.boost.org/doc/libs/release/libs/smart_ptr/doc/html/smart_ptr.html Boost.SmartPtr]]
+[def __boost_system__ [@https://www.boost.org/doc/libs/release/libs/system/doc/html/system.html Boost.System]]
 
 [template github_issue[key][@https://github.com/boostorg/scope/issues/[key] #[key]]]
 [template github_pr[key][@https://github.com/boostorg/scope/pull/[key] PR#[key]]]

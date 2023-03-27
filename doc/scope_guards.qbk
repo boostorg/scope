@@ -10,10 +10,11 @@
 
 [section:scope_guards Scope guards]
 
-A scope guard is an object that invokes an arbitrary function object on destruction. Scope guards are useful for implementing actions
-that need to be reliably performed upon control leaving an execution scope, which is especially helpful for handling exceptions.
+A scope guard is an object that invokes an arbitrary /action/ function object on destruction. Scope guards are useful for implementing
+actions that need to be reliably performed upon control leaving an execution scope (for example, when returning from a function), which
+is especially helpful for handling exceptions.
 
-The wrapped function object is specified on the scope guard construction and cannot be changed afterwards. It must be one of:
+The wrapped action function object is specified on the scope guard construction and cannot be changed afterwards. It must be one of:
 
 * a user-defined class with a public `operator()` taking no arguments, or
 * an lvalue reference to such class, or
@@ -22,41 +23,61 @@ The wrapped function object is specified on the scope guard construction and can
 Note that if the wrapped function is a reference to a function object, that object must be stored externally to the scope guard and
 must remain valid for the entire lifetime of the scope guard.
 
-Boost.Scope provides four kinds of scope guards, differing in their features and conditions upon which the function object is called,
-summarised in the table below.
+Some scope guards also support specifying an additional /condition/ function object, which allows for customizing the conditions in
+which the action function object must be called. A condition function object must satisfy the same requirements as the action function
+object listed above, plus the following:
+
+* invoking the condition function object must return a value contextually convertible to `bool`, and
+* invoking the condition function object must not throw exceptions.
+
+Boost.Scope provides five kinds of scope guards, differing in their features and conditions upon which the action function object is
+called, summarised in the table below.
 
 [table Scope guard comparison
-[[Feature] [[class_scope_scope_exit]] [[class_scope_scope_success]] [[class_scope_scope_fail]] [[class_scope_scope_final]]]
-[[Invokes function on normal scope exit?] [Yes] [Yes] [No] [Yes]]
-[[Invokes function on scope exit due to an exception?] [Yes] [No] [Yes] [Yes]]
-[[Function may throw?] [Yes] [Yes] [No] [Yes]]
-[[Can be (de)activated?] [Yes] [Yes] [Yes] [No]]
-[[Move-constructible? (requires function to be move-constructible)] [Yes] [Yes] [Yes] [No]]
-[[Has factory function? (C++11-friendly)] [Yes] [Yes] [Yes] [No]]
+[[Feature] [[class_scope_scope_exit]] [[class_scope_scope_success]] [[class_scope_scope_fail]] [[class_scope_scope_check]] [[class_scope_scope_final]]]
+[[Supports a condition function?] [No] [Yes] [Yes] [Yes] [No]]
+[[Invokes action on normal scope exit?] [Yes] [Yes] [No] [Depends on condition] [Yes]]
+[[Invokes action on scope exit due to failure?] [Yes] [No] [Yes] [Depends on condition] [Yes]]
+[[Action may throw?] [Yes] [Typically yes] [Typically no] [Depends on condition] [Yes]]
+[[Can be (de)activated?] [Yes] [Yes] [Yes] [Yes] [No]]
+[[Move-constructible? (requires function objects to be move-constructible)] [Yes] [Yes] [Yes] [Yes] [No]]
+[[Has factory function? (C++11-friendly)] [Yes] [Yes] [Yes] [Yes] [No]]
 ]
 
-[note Except for [class_scope_scope_fail], function objects wrapped in scope guards are allowed to throw exceptions upon execution.
-However, users should remember that [class_scope_scope_exit] and [class_scope_scope_final] invoke the wrapped function upon exceptions,
-and throwing an exception from the scope guard in this case will terminate the program. It is user's responsibility to ensure this
-doesn't happen. This problem doesn't exist for [class_scope_scope_success] because it doesn't invoke the wrapped function object on
-exceptions. However, it is generally recommended to use scope guards to implement actions that cannot throw and move all operations
-that may fail to the normal code flow.]
+In the table above, the term "failure" is used broadly. What constitutes a failure in a given context is specified by user in
+the form of the condition function object. Most often, a thrown exception is taken as an indication of a failure, but it can be
+changed to, for example, a check for an error code that is being returned from the enclosing function.
 
-[section:conditional `scope_exit`, `scope_success` and `scope_fail`]
+Although it is possible to specify arbitrary condition function objects, typically [class_scope_scope_success] invokes its action
+when the scope is left normally (i.e. not via an exception) and [class_scope_scope_fail] should typically be used to handle errors,
+including exceptions. For this reason, action functions that are used with [class_scope_scope_fail] are typically not allowed
+to throw, as this may cause the program to terminate. This is also a concern with other scope guards, such as [class_scope_scope_exit]
+and [class_scope_scope_final], which also may invoke their actions due to an exception. It is user's responsibility to ensure that
+scope guard actions don't throw if another exception is being propagated. Generally, it is recommended to use scope guards
+to implement actions that cannot throw and move all operations that may fail to the normal code flow.
+
+[section:conditional Conditional scope guards: `scope_exit`, `scope_success`, `scope_fail` and `scope_check`]
 
     #include <``[boost_scope_scope_exit_hpp]``>
     #include <``[boost_scope_scope_success_hpp]``>
     #include <``[boost_scope_scope_fail_hpp]``>
+    #include <``[boost_scope_scope_check_hpp]``>
 
-The [class_scope_scope_exit], [class_scope_scope_success] and [class_scope_scope_fail] scope guards provide similar interfaces and
-capabilities and only differ in conditions when they invoke the wrapped function object. As shown in the table above,
-[class_scope_scope_success] only invokes the function object if it is destroyed normally, [class_scope_scope_fail] - if it is
-destroyed due to an exception being thrown, and [class_scope_scope_exit] acts regardless of the exception status.
+The [class_scope_scope_exit], [class_scope_scope_success], [class_scope_scope_fail] and [class_scope_scope_check] scope guards
+have a lot of similarities in interfaces and capabilities and differ in conditions when they invoke the action function object.
+As shown in the table above, [class_scope_scope_success], [class_scope_scope_fail] and [class_scope_scope_check] support specifying
+an additional condition function object, while [class_scope_scope_exit] does not. By default, [class_scope_scope_success] will
+invoke its action if it is destroyed normally, [class_scope_scope_fail] - if it is destroyed due to an exception being thrown.
+[class_scope_scope_check] does not have a default condition and invokes its action if the user-specified condition is satisfied.
 
-In addition to the exception status, each of the scope guards supports active and inactive state. The wrapped function object will
+[tip Customizing condition function objects will be discussed in more detail in the [link scope.scope_guards.custom_conditions next]
+section.]
+
+Aside from condition function objects, each of the scope guards supports active and inactive state. The action function object will
 only be called if the scope guard is in active state while being destroyed. By default, scope guards are created in active state,
-but this can be changed by passing `false` as the second argument for the constructor. Scope guards can also be deactivated or
-re-activated during their lifetime, which can be useful if the scope guard needs to be activated based on some condition.
+but this can be changed by passing `false` as the last argument for the constructor. Scope guards can also be deactivated or
+re-activated during their lifetime, which can be useful if the scope guard needs to be activated based on some run time condition
+after it is created.
 
     class collection
     {
@@ -95,7 +116,7 @@ the scope guard construction can be rewritten using a factory function, like thi
     },
     false);
 
-Factory functions are provided for each of the three scope guards described in this section and are compatible with C++11.
+Factory functions are provided for each of the four scope guards described in this section and are compatible with C++11.
 
 Scope guards described in this section are move-constructible (but not assignable), which requires the wrapped function objects to be
 move- or copy-constructible as well. After moving, the moved-from scope guard becomes inactive. If a moved-from scope guard is active
@@ -103,11 +124,135 @@ on destruction, the behavior is undefined.
 
 [endsect]
 
-[section:unconditional `scope_final`]
+[section:custom_conditions Customizing scope guard conditions]
+
+    #include <``[boost_scope_exception_checker_hpp]``>
+    #include <``[boost_scope_error_code_checker_hpp]``>
+
+As discussed before, [class_scope_scope_success], [class_scope_scope_fail] and [class_scope_scope_check] support specifying an additional
+condition function object that will be called to decide whether the scope guard should invoke the action. By default,
+[class_scope_scope_success] and [class_scope_scope_fail] use the [class_scope_exception_checker] condition function, which tests if
+an exception is being thrown at the point of its call, compared to the point of its construction. Note that the condition function returns
+`true` when the exception is detected. [class_scope_scope_success] invokes its action when the condition returns `false` (i.e. when the
+failure is not detected) and [class_scope_scope_fail] - when the condition returns `true` (i.e. when the failure is detected).
+
+For [class_scope_scope_check], there is no default condition, and the condition function object must be specified by user on construction.
+[class_scope_scope_check] will only invoke its action if the condition function returns `true`.
+
+[tip You may notice that [class_scope_scope_check] behavior is similar to [class_scope_scope_fail] and opposite to [class_scope_scope_success].
+The main difference is a semantic one: [class_scope_scope_check] does not have the default condition and doesn't immediately correspond
+to a success or failure handler. On the other hand, [class_scope_scope_success] and [class_scope_scope_fail] correspond to their respective
+use cases, and the default condition function makes them equivalent to the scope guards defined in
+[@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`].]
+
+All three scope guards accept the condition function object as the second argument for the constructor or factory function, after
+the action function object. The condition function object must be callable with no arguments, and must not throw exceptions when being
+called.
+
+    // Writes a string to a file using a file descriptor, with file locking.
+    // Reports errors either via an error_code parameter.
+    void locked_write_string(int fd, std::string const& str, std::error_code& ec)
+    {
+        int err = 0;
+
+        // Automatically transform errors to error_code on exit
+        boost::scope::scope_fail fail_guard
+        {
+            // Action function object
+            [&] { ec = std::error_code(err, std::generic_category()); },
+            // Condition function object
+            [&err]() noexcept { return err != 0 && err != EINTR; }
+        };
+
+        // Lock the file
+        while (flock(fd, LOCK_EX) < 0)
+        {
+            err = errno;
+            if (err != EINTR)
+                return;
+        }
+
+        // Unlock the file on exit
+        BOOST_SCOPE_FINAL [&]
+        {
+            while (flock(fd, LOCK_UN) < 0)
+            {
+                err = errno;
+                if (err != EINTR)
+                    return;
+            }
+        };
+
+        // Write data
+        const char* p = str.data();
+        std::size_t size_left = str.size();
+        while (size_left > 0)
+        {
+            ssize_t written = write(fd, p, size_left);
+            if (written < 0)
+            {
+                err = errno;
+                if (err == EINTR)
+                    continue;
+                return;
+            }
+
+            p += written;
+            size_left -= written;
+        }
+    }
+
+Besides [class_scope_exception_checker], the library also provides [class_scope_error_code_checker] that can be used as a condition
+function object. On construction, [class_scope_error_code_checker] captures a reference to an external error code object and checks it
+for an error indication when being called. An object `ec` can be used as an error code object if:
+
+* the expression `!ec` is valid, never throws, and returns a value contextually convertible to `bool`, and
+* the expression `!ec` produces a value contextually convertible to `true` when there is no error and `false` otherwise.
+
+That is, for an error code object `ec`, invoking [class_scope_error_code_checker] results in a value equivalent to `!!ec`. This makes
+[class_scope_error_code_checker] compatible with a wide variety of error code types, including:
+
+* `std::error_code` or `boost::system::error_code` from __boost_system__,
+* `std::expected`, `boost::outcome_v2::basic_outcome` or `boost::outcome_v2::basic_result` from __boost_outcome__,
+* `int`, where the value of 0 indicates no error,
+* `bool`, where the value of `false` indicates no error,
+* `T*`, where a null pointer indicates no error.
+
+For C++11 compilers, the library also provides a factory function `check_error_code`. For example, our previous example could use
+this condition function object like this:
+
+    // Writes a string to a file using a file descriptor, with file locking.
+    // Reports errors either via an error_code parameter.
+    void locked_write_string(int fd, std::string const& str, std::error_code& ec)
+    {
+        int err = 0;
+
+        // Automatically transform errors to error_code on exit
+        boost::scope::scope_fail fail_guard
+        {
+            // Action function object
+            [&]
+            {
+                if (err != EINTR)
+                    ec = std::error_code(err, std::generic_category());
+            },
+            // Condition function object
+            boost::scope::check_error_code(err)
+        };
+
+        // ...
+    }
+
+Note that we had to move the test for `EINTR` to the scope guard action since [class_scope_error_code_checker] would only test `err`
+for being zero.
+
+[endsect]
+
+[section:unconditional Unconditional scope guard: `scope_final`]
 
     #include <``[boost_scope_scope_final_hpp]``>
 
-The [class_scope_scope_final] scope guard is similar to [class_scope_scope_exit] in terms of when it invokes the wrapped function. But it
+The [class_scope_scope_final] scope guard is similar to [class_scope_scope_exit] in terms of when it invokes the action function. But it
 lacks support for moveability and activation/deactivation - this scope guard is always active upon construction. This allows to implement
 it more efficiently when these features are not needed.
 
@@ -130,7 +275,8 @@ very much desired.]
 
 As you can see, `BOOST_SCOPE_FINAL` offers a few syntax improvements over the other scope guard declarations:
 
-* The declaration does not name a scope guard variable, meaning one does not need to invent one.
+* The declaration does not name a scope guard variable, meaning one does not need to invent one and there is no possibility to accidentally
+  omit one.
 * The declaration is generally shorter to type and easier to spot.
 * There are no extra parenthesis or curly brackets around the function object.
 
@@ -211,6 +357,24 @@ and only activate one of them at a later point in the program.
         cleanup_true.set_active(true);
     else
         cleanup_false.set_active(true);
+
+Alternatively, one could implement the selection within the scope guard action itself.
+
+    // Create a single inactive scope guard that implements both branches
+    bool cond;
+    boost::scope::scope_exit cleanup([&cond]
+    {
+        if (cond)
+            std::cout << "cond is true" << std::endl;
+        else
+            std::cout << "cond is false" << std::endl;
+    },
+    false);
+
+    // Later in the program, select the branch to perform
+    // and activate the scope guard.
+    cond = select_branch();
+    cleanup.set_active(true);
 
 [endsect]
 
