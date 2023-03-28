@@ -2,6 +2,8 @@
 
 Boost.Scope provides a number of scope guard utilities described in [C++ Extensions for Library Fundamentals, Version 3](https://github.com/cplusplus/fundamentals-ts/releases/tag/n4908), Section 3.3 Scope guard support \[scopeguard\]. The implementation also provides a few non-standard extensions.
 
+This library is currently proposed for review and potential inclusion into [Boost](https://www.boost.org/).
+
 ### Directories
 
 * **doc** - QuickBook documentation sources
