@@ -30,7 +30,7 @@
 namespace boost {
 namespace scope {
 
-template< typename Func, typename Cond = exception_checker >
+template< typename Func, typename Cond >
 class scope_fail;
 
 namespace detail {
@@ -62,7 +62,7 @@ using is_not_like_scope_fail = detail::is_not_like< T, scope_fail >;
  * \sa scope_check
  * \sa scope_success
  */
-template< typename Func, typename Cond >
+template< typename Func, typename Cond = exception_checker >
 class scope_fail :
     public scope_check< Func, Cond >
 {

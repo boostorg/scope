@@ -31,7 +31,7 @@
 namespace boost {
 namespace scope {
 
-template< typename Func, typename Cond = exception_checker >
+template< typename Func, typename Cond >
 class scope_success;
 
 namespace detail {
@@ -106,7 +106,7 @@ public:
  * \sa scope_check
  * \sa scope_fail
  */
-template< typename Func, typename Cond >
+template< typename Func, typename Cond = exception_checker >
 class scope_success :
     public scope_check< Func, detail::logical_not< Cond > >
 {

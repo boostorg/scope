@@ -29,6 +29,14 @@
 #endif
 #endif
 
+#if !defined(BOOST_SCOPE_DETAIL_DOC)
+#if !defined(BOOST_SCOPE_DOXYGEN)
+#define BOOST_SCOPE_DETAIL_DOC(...)
+#else
+#define BOOST_SCOPE_DETAIL_DOC(...) __VA_ARGS__
+#endif
+#endif
+
 #include <boost/scope/detail/footer.hpp>
 
 #endif // BOOST_SCOPE_DETAIL_CONFIG_HPP_INCLUDED_
