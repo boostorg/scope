@@ -44,6 +44,8 @@ namespace scope {
  * \li `int`, where the value of 0 indicates no error,
  * \li `bool`, where the value of `false` indicates no error,
  * \li `T*`, where a null pointer indicates no error.
+ *
+ * \tparam ErrorCode Error code type.
  */
 template< typename ErrorCode >
 class error_code_checker

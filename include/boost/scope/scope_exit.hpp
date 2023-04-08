@@ -60,6 +60,8 @@ using is_not_like_scope_exit = detail::is_not_like< T, scope_exit >;
  * or calling `set_active(false)` or `release()`. An inactive scope guard
  * can be made active by calling `set_active(true)`. If a moved-from scope
  * guard is active on destruction, the behavior is undefined.
+ *
+ * \tparam Func Scope guard action function object type.
  */
 template< typename Func >
 class scope_exit

@@ -1044,7 +1044,7 @@ struct dereference_traits< T, true >
  *
  * \tparam Resource Resource type.
  * \tparam Deleter Resource deleter function object type.
- * \tparam Traits Resource traits type.
+ * \tparam Traits Optional resource traits type.
  */
 template< typename Resource, typename Deleter, typename Traits BOOST_SCOPE_DETAIL_DOC(= void) >
 class unique_resource

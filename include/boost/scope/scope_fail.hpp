@@ -61,6 +61,9 @@ using is_not_like_scope_fail = detail::is_not_like< T, scope_fail >;
  *
  * \sa scope_check
  * \sa scope_success
+ *
+ * \tparam Func Scope guard action function object type.
+ * \tparam Cond Scope guard failure condition function object type.
  */
 template< typename Func, typename Cond = exception_checker >
 class scope_fail :

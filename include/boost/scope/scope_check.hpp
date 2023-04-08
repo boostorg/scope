@@ -113,6 +113,9 @@ public:
  * scope guard can be made active by calling `set_active(true)`.
  * If a moved-from scope guard is active on destruction, the behavior
  * is undefined.
+ *
+ * \tparam Func Scope guard action function object type.
+ * \tparam Cond Scope guard condition function object type.
  */
 template< typename Func, typename Cond >
 class scope_check

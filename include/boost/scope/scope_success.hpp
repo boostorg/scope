@@ -105,6 +105,9 @@ public:
  *
  * \sa scope_check
  * \sa scope_fail
+ *
+ * \tparam Func Scope guard action function object type.
+ * \tparam Cond Scope guard failure condition function object type.
  */
 template< typename Func, typename Cond = exception_checker >
 class scope_success :
