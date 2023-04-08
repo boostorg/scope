@@ -29,7 +29,19 @@ namespace scope {
  * \brief A predicate for checking whether an exception is being thrown.
  *
  * On construction, the predicate captures the current number of uncaught exceptions,
- * which it then uses when called to detect if a new exception is being thrown.
+ * which it then compares with the number of uncaught exceptions at the point when it
+ * is called. If the number increased then a new exception is detected and the predicate
+ * returns \c true.
+ *
+ * \note This predicate is designed for a specific use case with scope guards created on
+ *       the stack. It is incompatible with C++20 coroutines and similar facilities (e.g.
+ *       fibers and userspace context switching), where the thread of execution may be
+ *       suspended after the predicate captures the number of uncaught exceptions and
+ *       then resumed in a different context, where the number of uncaught exceptions
+ *       has changed. Similarly, it is incompatible with usage patterns where the predicate
+ *       is cached after construction and is invoked after the thread has left the scope
+ *       where the predicate was constructed (e.g. when the predicate is stored as a class
+ *       data member or a namespace-scope variable).
  */
 class exception_checker
 {
