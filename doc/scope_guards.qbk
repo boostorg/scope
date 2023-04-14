@@ -158,21 +158,91 @@ member or a namespace-scope variable).]
 For [class_scope_scope_check], there is no default condition, and the condition function object must be specified by user on construction.
 [class_scope_scope_check] will only invoke its action if the condition function returns `true`.
 
-[tip You may notice that [class_scope_scope_check] behavior is similar to [class_scope_scope_fail] and opposite to [class_scope_scope_success].
+You may notice that [class_scope_scope_check] behavior is similar to [class_scope_scope_fail] and opposite to [class_scope_scope_success].
 The main difference is a semantic one: [class_scope_scope_check] does not have the default condition and doesn't immediately correspond
 to a success or failure handler. On the other hand, [class_scope_scope_success] and [class_scope_scope_fail] correspond to their respective
 intended use cases, and the default condition function makes them equivalent to the scope guards defined in
 [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`].
 
-It is also possible to emulate each of the scope guards described in this section by using [class_scope_scope_exit] with the condition function
-embedded into the action function. The benefit of having separate scope guards instead of using [class_scope_scope_exit] universally is
-improved code readability. For example, [class_scope_scope_fail] indicates an error handler to the reader, whereas [class_scope_scope_exit] does
-not have such connotation and would usually contain a general cleanup action. It also allows reducing code duplication, e.g. when the failure
-condition function is written once and reused in multiple scope guards.]
+It is possible to emulate each of the scope guards described in this section by using [class_scope_scope_exit], either with the condition
+function embedded into the action function, or by activating or deactivating the scope guard after construction. For example, the following
+three pieces of code have the same effect:
 
-All three scope guards accept the condition function object as the second argument for the constructor or factory function, after
-the action function object. If the condition function object is default-constructible and the default constructor doesn't throw, the function
-object may be omitted from the scope guard constructor arguments.
+[table Comparison of `scope_fail` and `scope_exit`
+[[`scope_fail`][`scope_exit` with embedded condition][`scope_exit` with manual deactivation]]
+[[
+```
+void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
+{
+    vec1.push_back(x);
+
+    // Revert vec1 modification on failure
+    boost::scope::scope_fail rollback_guard{[&] { vec1.pop_back(); }};
+
+    vec2.push_back(x);
+}
+```
+]
+[
+```
+void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
+{
+    vec1.push_back(x);
+
+    // Revert vec1 modification on failure
+    boost::scope::scope_exit rollback_guard
+    {
+        [&, uncaught_count = std::uncaught_exceptions()]
+        {
+            if (std::uncaught_exceptions() > uncaught_count)
+                vec1.pop_back();
+        }
+    };
+
+    vec2.push_back(x);
+}
+```
+]
+[
+```
+void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
+{
+    vec1.push_back(x);
+
+    // Revert vec1 modification on failure
+    boost::scope::scope_exit rollback_guard{[&] { vec1.pop_back(); }};
+
+    vec2.push_back(x);
+
+    // Commit vec1 modification
+    rollback_guard.set_active(false);
+}
+```
+]]
+]
+
+The main benefit of using [class_scope_scope_fail] in this example is reducing code size and complexity. You can see that adding the check
+for the number of uncaught exceptions to the scope guard action makes it notably more verbose, and if such a check needs to be performed
+in multiple scope guards, this code would have to be duplicated. Explicitly deactivating the scope guard also has its downsides, as it may
+be prone to errors if it has to be performed in multiple places of the code (for example, when there are multiple return points, where
+the transaction needs to be committed). This goes against the intended purpose of the scope guard, as it was supposed to automate the correct
+execution of its action without the user having to manually ensure this at every possible point of leaving the scope.
+
+Another benefit of [class_scope_scope_fail] is improved code readability. For a reader, [class_scope_scope_fail] immediately indicates
+an error handler, whereas [class_scope_scope_exit] does not have such connotation and may contain a general cleanup code.
+
+That being said, there may be reasons to still use one of the techniques demonstrated above instead of
+[class_scope_scope_success]/[class_scope_scope_fail], especially when paired with [class_scope_exception_checker]. As noted above,
+[class_scope_exception_checker] is incompatible with coroutines and similar facilities, so using a manually managed [class_scope_scope_exit]
+can be a solution. Another consideration is performance, specifically in relation with [class_scope_exception_checker]. This predicate has
+to invoke runtime functions to obtain the number of uncaught exceptions, and has to do this twice - on scope guard construction and destruction.
+Although these functions are usually cheap, these calls are typically not optimized away by the compiler, even if no exception is thrown,
+and deactivating a scope guard is yet cheaper. So, if a scope guard is used in a tight loop where its performance overhead may be significant,
+preferring [class_scope_scope_exit] with manual deactivation may be a reasonable choice.
+
+[class_scope_scope_success], [class_scope_scope_fail] and [class_scope_scope_check] accept the condition function object as the second argument
+for the constructor or factory function, after the action function object. If the condition function object is default-constructible and
+the default constructor doesn't throw, the function object may be omitted from the scope guard constructor arguments.
 
     // Writes a string to a file using a file descriptor, with file locking.
     // Reports errors either via an error_code parameter.
