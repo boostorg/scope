@@ -135,7 +135,7 @@ public:
         BOOST_SCOPE_EXIT_END;
 
         // Throws on error
-        it->activate(arg);
+        it->start(arg);
     }
 };
 ```
@@ -160,7 +160,7 @@ public:
         });
 
         // Throws on error
-        it->activate(std::forward< T >(arg));
+        it->start(std::forward< T >(arg));
     }
 };
 ```
@@ -185,7 +185,7 @@ public:
         }};
 
         // Throws on error
-        it->activate(std::forward< T >(arg));
+        it->start(std::forward< T >(arg));
     }
 };
 ```
