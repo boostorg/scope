@@ -14,6 +14,7 @@
 #ifndef BOOST_SCOPE_EXCEPTION_CHECKER_HPP_INCLUDED_
 #define BOOST_SCOPE_EXCEPTION_CHECKER_HPP_INCLUDED_
 
+#include <boost/assert.hpp>
 #include <boost/scope/detail/config.hpp>
 #include <boost/core/uncaught_exceptions.hpp>
 #include <boost/scope/detail/header.hpp>
@@ -78,7 +79,12 @@ public:
      */
     result_type operator()() const noexcept
     {
-        return boost::core::uncaught_exceptions() > m_uncaught_count;
+        const unsigned int uncaught_count = boost::core::uncaught_exceptions();
+        // If this assertion fails, the predicate is likely being used in an unsupported
+        // way, where it is called in a different scope or thread context from where
+        // it was constructed.
+        BOOST_ASSERT((uncaught_count - m_uncaught_count) <= 1u);
+        return uncaught_count > m_uncaught_count;
     }
 };
 
