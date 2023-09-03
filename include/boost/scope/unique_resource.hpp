@@ -15,8 +15,8 @@
 #define BOOST_SCOPE_UNIQUE_RESOURCE_HPP_INCLUDED_
 
 #include <type_traits>
-#include <boost/core/swap.hpp>
 #include <boost/core/addressof.hpp>
+#include <boost/core/invoke_swap.hpp>
 #include <boost/scope/unique_resource_fwd.hpp>
 #include <boost/scope/detail/config.hpp>
 #include <boost/scope/detail/compact_storage.hpp>
@@ -615,8 +615,8 @@ private:
 
     void swap_impl(unique_resource_data& that, std::true_type, std::true_type) noexcept
     {
-        boost::swap(get_internal_resource(), that.get_internal_resource());
-        boost::swap(get_internal_deleter(), that.get_internal_deleter());
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
 
         const bool allocated = m_allocated;
         m_allocated = that.m_allocated;
@@ -625,14 +625,14 @@ private:
 
     void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
     {
-        boost::swap(get_internal_resource(), that.get_internal_resource());
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
         try
         {
-            boost::swap(get_internal_deleter(), that.get_internal_deleter());
+            boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
         }
         catch (...)
         {
-            boost::swap(get_internal_resource(), that.get_internal_resource());
+            boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
             throw;
         }
 
@@ -643,14 +643,14 @@ private:
 
     void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
     {
-        boost::swap(get_internal_deleter(), that.get_internal_deleter());
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
         try
         {
-            boost::swap(get_internal_resource(), that.get_internal_resource());
+            boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
         }
         catch (...)
         {
-            boost::swap(get_internal_deleter(), that.get_internal_deleter());
+            boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
             throw;
         }
 
@@ -896,34 +896,34 @@ private:
 
     void swap_impl(unique_resource_data& that, std::true_type, std::true_type) noexcept
     {
-        boost::swap(get_internal_resource(), that.get_internal_resource());
-        boost::swap(get_internal_deleter(), that.get_internal_deleter());
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
     }
 
     void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
     {
-        boost::swap(get_internal_resource(), that.get_internal_resource());
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
         try
         {
-            boost::swap(get_internal_deleter(), that.get_internal_deleter());
+            boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
         }
         catch (...)
         {
-            boost::swap(get_internal_resource(), that.get_internal_resource());
+            boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
             throw;
         }
     }
 
     void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
     {
-        boost::swap(get_internal_deleter(), that.get_internal_deleter());
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
         try
         {
-            boost::swap(get_internal_resource(), that.get_internal_resource());
+            boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
         }
         catch (...)
         {
-            boost::swap(get_internal_deleter(), that.get_internal_deleter());
+            boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
             throw;
         }
     }
