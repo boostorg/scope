@@ -6,14 +6,14 @@
  * Copyright (c) 2023 Andrey Semashev
  */
 /*!
- * \file scope/fd_resource.hpp
+ * \file scope/fd_deleter.hpp
  *
- * This header contains definition of \c unique_resource utilities
- * for compatibility with POSIX-like file descriptors.
+ * This header contains definition of a deleter function object for
+ * POSIX-like file descriptors for use with \c unique_resource.
  */
 
-#ifndef BOOST_SCOPE_FD_RESOURCE_HPP_INCLUDED_
-#define BOOST_SCOPE_FD_RESOURCE_HPP_INCLUDED_
+#ifndef BOOST_SCOPE_FD_DELETER_HPP_INCLUDED_
+#define BOOST_SCOPE_FD_DELETER_HPP_INCLUDED_
 
 #include <boost/scope/detail/config.hpp>
 
@@ -34,22 +34,6 @@
 
 namespace boost {
 namespace scope {
-
-//! POSIX-like file descriptor resource traits
-struct fd_resource_traits
-{
-    //! Creates a default fd value
-    static int make_default() noexcept
-    {
-        return -1;
-    }
-
-    //! Tests if the fd is allocated (valid)
-    static bool is_allocated(int fd) noexcept
-    {
-        return fd >= 0;
-    }
-};
 
 //! POSIX-like file descriptor deleter
 struct fd_deleter
@@ -95,4 +79,4 @@ struct fd_deleter
 
 #include <boost/scope/detail/footer.hpp>
 
-#endif // BOOST_SCOPE_FD_RESOURCE_HPP_INCLUDED_
+#endif // BOOST_SCOPE_FD_DELETER_HPP_INCLUDED_

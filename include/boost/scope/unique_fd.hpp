@@ -16,7 +16,8 @@
 
 #include <boost/scope/detail/config.hpp>
 #include <boost/scope/unique_resource.hpp>
-#include <boost/scope/fd_resource.hpp>
+#include <boost/scope/fd_deleter.hpp>
+#include <boost/scope/fd_resource_traits.hpp>
 #include <boost/scope/detail/header.hpp>
 
 #ifdef BOOST_HAS_PRAGMA_ONCE
