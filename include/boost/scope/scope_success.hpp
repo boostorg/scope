@@ -17,7 +17,7 @@
 #include <type_traits>
 #include <boost/scope/detail/config.hpp>
 #include <boost/scope/exception_checker.hpp>
-#include <boost/scope/scope_check.hpp>
+#include <boost/scope/scope_exit.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 #include <boost/scope/detail/type_traits/is_invocable.hpp>
@@ -103,7 +103,7 @@ public:
  * due to an exception - the action function object will only be called if
  * the scope is left normally.
  *
- * \sa scope_check
+ * \sa scope_exit
  * \sa scope_fail
  *
  * \tparam Func Scope guard action function object type.
@@ -111,11 +111,11 @@ public:
  */
 template< typename Func, typename Cond = exception_checker >
 class scope_success :
-    public scope_check< Func, detail::logical_not< Cond > >
+    public scope_exit< Func, detail::logical_not< Cond > >
 {
 //! \cond
 private:
-    typedef scope_check< Func, detail::logical_not< Cond > > base_type;
+    typedef scope_exit< Func, detail::logical_not< Cond > > base_type;
 
 //! \endcond
 public:

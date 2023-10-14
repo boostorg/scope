@@ -36,6 +36,7 @@ project
             cxx11_lambdas
             cxx11_auto_declarations
             cxx11_unified_initialization_syntax
+            cxx11_hdr_system_error
         ]
     ;
 
