@@ -30,7 +30,7 @@
 
 [section:intro Introduction]
 
-The Boost.Scope library is a collection of utilities helping code execution upon leaving a scope and automatic resource management. The library contains
+The Boost.Scope library is a collection of utilities helping with code execution upon leaving a scope and automatic resource management. The library contains
 components that were defined in the [@https://cplusplus.github.io/fundamentals-ts/v3.html C++ Extensions for Library Fundamentals, Version 3] technical specification,
 in the [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`] standard library
 header. The library also contains extensions to the Fundamentals TS that improve usability or efficiency of the components.
@@ -40,11 +40,11 @@ The components provided by the library can be divided into two categories:
 * A set of scope guards that allow executing arbitrary code when the scope guard is destroyed,
 * A generic resource wrapper that automatically frees the owned resource upon destruction.
 
-There is some overlap in terms of functionality with __boost_scope_exit__, __boost_smart_ptr__ as well as C++ standard library smart-pointers. __boost_scope_exit__
-defines a set of macros for defining code blocks to be executed at scope exit. Scope guards provided by Boost.Scope provide similar functionality, but with
-simpler syntax and new features. You can see the syntax differences in the table below:
+There is some overlap in terms of functionality with __boost_scope_exit__, __boost_smart_ptr__ as well as C++ standard library smart-pointers. Compared to
+__boost_scope_exit__, scope guards provided by Boost.Scope offer simpler syntax (especially with C++17 capable compilers) and new features for specific use cases.
+You can see the syntax differences in the table below:
 
-[table __boost_scope_exit__ and Boost.Scope comparison
+[table __boost_scope_exit__ and Boost.Scope syntax overview
 [[__boost_scope_exit__ (C++03)] [Boost.Scope (C++11)] [Boost.Scope (C++17)]]
 [[
 ```
@@ -191,6 +191,8 @@ public:
 ```
 ]]
 ]
+
+Detailed comparison between scope guards provided by Boost.Scope and __boost_scope_exit__ is given in a [link scope.scope_guards.comparison_with_boost_scope_exit separate section].
 
 Unique resource wrapper provided by Boost.Scope is a generalization of smart pointers like `std::unique_ptr` and `boost::scoped_ptr` from __boost_smart_ptr__. While
 smart pointers are suitable for managing resources represented by pointers (e.g. objects in dynamically allocated memory), unique resource wrapper can be used

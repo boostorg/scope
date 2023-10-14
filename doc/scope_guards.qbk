@@ -506,4 +506,478 @@ Alternatively, one could implement the selection within the scope guard action i
 
 [endsect]
 
+[section:comparison_with_boost_scope_exit Comparison with Boost.ScopeExit library]
+
+__boost_scope_exit__ defines a set of macros for defining code blocks to be executed at scope exit. Scope guards provided by Boost.Scope
+provide similar functionality, but with simpler syntax and new features. Differences between libraries are summarized in the table below.
+
+[table __boost_scope_exit__ and Boost.Scope comparison
+[[Feature] [__boost_scope_exit__] [Boost.Scope]]
+[[
+Minimum and recommended C++ version.
+]
+[
+C++03 minimum, C++11 recommended for some features.
+]
+[
+C++11 minimum, C++17 recommended for some features.
+]]
+[[
+Basic functionality.
+]
+[
+```
+BOOST_SCOPE_EXIT(void)
+{
+    std::cout << "Hello, World!" << std::endl;
+}
+BOOST_SCOPE_EXIT_END;
+```
+]
+[
+```
+boost::scope::scope_exit guard([]
+{
+    std::cout << "Hello, World!" << std::endl;
+});
+```
+
+Or:
+
+```
+BOOST_SCOPE_FINAL []
+{
+    std::cout << "Hello, World!" << std::endl;
+};
+```
+]]
+[[
+Capturing variables.
+]
+[
+Yes, both by value and by reference.
+
+```
+int x;
+std::string str;
+BOOST_SCOPE_EXIT(x, &str)
+{
+    std::cout << "x = " << x << ", str = " << str << std::endl;
+}
+BOOST_SCOPE_EXIT_END;
+```
+
+In C++03 mode without variadic macros support, Boost.Preprocessor sequence should be used to list captured variables.
+]
+[
+Yes, by means of the standard C++ lambda captures.
+
+```
+int x;
+std::string str;
+boost::scope::scope_exit guard([x, &str]
+{
+    std::cout << "x = " << x << ", str = " << str << std::endl;
+});
+```
+
+Or:
+
+```
+int x;
+std::string str;
+BOOST_SCOPE_FINAL [x, &str]
+{
+    std::cout << "x = " << x << ", str = " << str << std::endl;
+};
+```
+]]
+[[
+Capturing all variables.
+]
+[
+Yes, requires C++11.
+
+```
+int x;
+std::string str;
+BOOST_SCOPE_EXIT_ALL(&)
+{
+    std::cout << "x = " << x << ", str = " << str << std::endl;
+};
+```
+
+Note that no `BOOST_SCOPE_EXIT_END` is used in this case. See below for `BOOST_SCOPE_EXIT_ALL` caveats.
+]
+[
+Yes, by means of the standard C++ lambda captures.
+
+```
+int x;
+std::string str;
+boost::scope::scope_exit guard([&]
+{
+    std::cout << "x = " << x << ", str = " << str << std::endl;
+});
+```
+
+Or:
+
+```
+int x;
+std::string str;
+BOOST_SCOPE_FINAL [&]
+{
+    std::cout << "x = " << x << ", str = " << str << std::endl;
+};
+```
+]]
+[[
+Capturing `this`.
+]
+[
+Yes, with a special `this_` keyword.
+
+```
+class my_class
+{
+private:
+    int x;
+    std::string str;
+
+public:
+    void foo()
+    {
+        BOOST_SCOPE_EXIT(this_)
+        {
+            std::cout << "x = " << this_->x << ", str = " << this_->str << std::endl;
+        }
+        BOOST_SCOPE_EXIT_END;
+    }
+};
+```
+
+Note that the keyword must be explicitly used to reference members of the class within the scope exit block.
+
+Capturing `this` is also possible using `BOOST_SCOPE_EXIT_ALL` (with the caveats described below).
+
+```
+class my_class
+{
+private:
+    int x;
+    std::string str;
+
+public:
+    void foo()
+    {
+        BOOST_SCOPE_EXIT_ALL(this)
+        {
+            std::cout << "x = " << x << ", str = " << str << std::endl;
+        };
+    }
+};
+```
+]
+[
+Yes, by means of the standard C++ lambda captures.
+
+```
+class my_class
+{
+private:
+    int x;
+    std::string str;
+
+public:
+    void foo()
+    {
+        boost::scope::scope_exit guard([this]
+        {
+            std::cout << "x = " << x << ", str = " << str << std::endl;
+        };
+    }
+};
+```
+
+Or:
+
+```
+class my_class
+{
+private:
+    int x;
+    std::string str;
+
+public:
+    void foo()
+    {
+        BOOST_SCOPE_FINAL [this]
+        {
+            std::cout << "x = " << x << ", str = " << str << std::endl;
+        };
+    }
+};
+```
+]]
+[[
+Capturing specific members of a class.
+]
+[
+Yes.
+
+```
+class my_class
+{
+private:
+    int x;
+    std::string str;
+
+public:
+    void foo()
+    {
+        BOOST_SCOPE_EXIT(x, &str)
+        {
+            std::cout << "x = " << x << ", str = " << str << std::endl;
+        }
+        BOOST_SCOPE_EXIT_END;
+    }
+};
+```
+]
+[
+No. Capture `this` or use lambda capture initializers instead.
+
+```
+class my_class
+{
+private:
+    int x;
+    std::string str;
+
+public:
+    void foo()
+    {
+        BOOST_SCOPE_FINAL [x = x, str = std::ref(str)]
+        {
+            std::cout << "x = " << x << ", str = " << str.get() << std::endl;
+        };
+    }
+};
+```
+]]
+[[
+Support for scope guards in templates.
+]
+[
+Yes, using a special macro.
+
+```
+template< typename T >
+void foo(T const& param)
+{
+    BOOST_SCOPE_EXIT_TPL(&param)
+    {
+        std::cout << "Param: " << param << std::endl;
+    }
+    BOOST_SCOPE_EXIT_END;
+}
+```
+]
+[
+Yes, with no special syntax.
+
+```
+template< typename T >
+void foo(T const& param)
+{
+    BOOST_SCOPE_FINAL [&param]
+    {
+        std::cout << "Param: " << param << std::endl;
+    };
+}
+```
+]]
+[[
+Support for variadic templates and argument packs.
+]
+[
+Yes, using the `BOOST_SCOPE_EXIT_ALL` macro (see the caveats below).
+
+```
+template< typename... Args >
+void foo(Args&&... args)
+{
+    BOOST_SCOPE_EXIT_ALL(&args...)
+    {
+        std::cout << "Params: " << boost::tuples::tie(args...) << std::endl;
+    };
+}
+```
+]
+[
+Yes, by means of the standard C++ lambda captures.
+
+```
+template< typename... Args >
+void foo(Args&&... args)
+{
+    BOOST_SCOPE_FINAL [&args...]
+    {
+        std::cout << "Params: " << boost::tuples::tie(args...) << std::endl;
+    };
+}
+```
+]]
+[[
+Native support for activation/deactivation of the scope guard.
+]
+[
+No, the activation/deactivation logic needs to be embedded into the action code block.
+
+```
+bool active = false;
+BOOST_SCOPE_EXIT(&active)
+{
+    if (active)
+        std::cout << "Hello, World!" << std::endl;
+}
+BOOST_SCOPE_EXIT_END;
+
+active = true;
+```
+]
+[
+Yes, with [class_scope_scope_exit], [class_scope_scope_success] and [class_scope_scope_fail]. This includes the ability to delay activation
+of the initially inactive scope guards.
+
+```
+boost::scope::scope_exit guard([]
+{
+    std::cout << "Hello, World!" << std::endl;
+},
+false);
+
+guard.set_active(true);
+```
+]]
+[[
+Support for custom conditions for executing the action.
+]
+[
+No, the condition needs to be embedded into the action code block.
+
+```
+const auto uncaught_count = std::uncaught_exceptions();
+BOOST_SCOPE_EXIT(uncaught_count)
+{
+    if (std::uncaught_exceptions() > uncaught_count)
+        std::cout << "Exception thrown!" << std::endl;
+}
+BOOST_SCOPE_EXIT_END;
+```
+]
+[
+Yes, with [class_scope_scope_exit], [class_scope_scope_success] and [class_scope_scope_fail].
+
+```
+boost::scope::scope_exit guard(
+[]
+{
+    std::cout << "Exception thrown!" << std::endl;
+},
+[uncaught_count = std::uncaught_exceptions()]
+{
+    return std::uncaught_exceptions() > uncaught_count;
+});
+```
+
+Or simply:
+
+```
+boost::scope::scope_fail guard([]
+{
+    std::cout << "Exception thrown!" << std::endl;
+});
+```
+]]
+[[
+Utilities for checking exceptions and error codes as criteria for invoking the action.
+]
+[
+No.
+
+```
+std::error_code ec;
+BOOST_SCOPE_EXIT(&ec)
+{
+    if (ec)
+        std::cout << "Execution failed!" << std::endl;
+}
+BOOST_SCOPE_EXIT_END;
+```
+]
+[
+Yes, [class_scope_exception_checker] and [class_scope_error_code_checker].
+
+```
+std::error_code ec;
+boost::scope::scope_fail guard([]
+{
+    std::cout << "Execution failed!" << std::endl;
+},
+boost::scope::check_error_code(ec));
+```
+]]
+[[
+Named scope guards.
+]
+[
+No, the scope guard is declared as an unnamed code block. (The scope guard is internally implemented as an object with a unique name on
+the stack, but this is not part of the public interface.)
+]
+[
+Yes, scope guards are defined as objects. Also, [class_scope_scope_exit], [class_scope_scope_success] and [class_scope_scope_fail] are
+move-constructible and can be returned from functions.
+]]
+[[
+Anonymous scope guards.
+]
+[
+Yes.
+]
+[
+Yes, using the `BOOST_SCOPE_FINAL` macro.
+]]
+[[
+Macro-less usage.
+]
+[
+No.
+]
+[
+Yes.
+]]
+]
+
+In the table above, you may notice that a significant amount of feature parity between __boost_scope_exit__ and Boost.Scope is achieved by
+using the `BOOST_SCOPE_EXIT_ALL` macro in the former. This macro is implemented using C++11 lambda functions internally, which explains
+a lot of similarities between the libraries in this case. Users can also define `BOOST_SCOPE_EXIT_CONFIG_USE_LAMBDAS` to force other
+__boost_scope_exit__ macros to use C++11 lambdas internally, which will change the syntax and variable capture rules accordingly. However,
+there are a few caveats one needs to keep in mind when using the library in this mode (or the `BOOST_SCOPE_EXIT_ALL` macro in any mode):
+
+* Since it relies on C++11 lambda functions, it is not available in C++03 mode.
+* __boost_scope_exit__ scope guards that are implemented using C++11 lambdas store the lambda function in a `boost::function` object
+  internally. This means that creating the scope guard may require dynamic memory allocation and can fail with an exception. __boost_scope_exit__
+  does not document behavior in this case, but in practice, as of Boost 1.83.0, the scope exit block does not get executed in this case.
+  This means that __boost_scope_exit__ in this mode cannot be safely used in non-throwing contexts, and cannot guarantee execution of the
+  scope exit block. There is also performance overhead associated both with construction and execution of the scope guard.
+
+In comparison, Boost.Scope scope guards do not use function object wrappers, such as `boost::function` or `std::function`, to store the
+function objects. This means that the scope guards do not perform dynamic memory allocation (unless the function objects themselves do)
+and do not have the associated exception safety issues and performance overhead. Additionally, the scope guards will execute the action
+if initializing the scope guard fails with an exception.
+
+[endsect]
+
 [endsect]
