@@ -227,14 +227,17 @@ public:
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 template< typename Func >
 scope_success(Func) -> scope_success< Func >;
+
 template< typename Func >
 scope_success(Func, bool) -> scope_success< Func >;
+
 template<
     typename Func,
     typename Cond,
     typename = typename std::enable_if< detail::is_invocable< Cond const& >::value >::type
 >
 scope_success(Func, Cond) -> scope_success< Func, Cond >;
+
 template<
     typename Func,
     typename Cond,
