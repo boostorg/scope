@@ -176,12 +176,16 @@ construction. For example, the following four pieces of code have the same effec
 [[`scope_fail`][`scope_exit` with a condition][`scope_exit` with embedded condition][`scope_exit` with manual deactivation]]
 [[
 ```
-void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
+void push_back(int x, std::vector<int>& vec1,
+    std::vector<int>& vec2)
 {
     vec1.push_back(x);
 
     // Revert vec1 modification on failure
-    boost::scope::scope_fail rollback_guard{[&] { vec1.pop_back(); }};
+    boost::scope::scope_fail rollback_guard{[&]
+    {
+        vec1.pop_back();
+    }};
 
     vec2.push_back(x);
 }
@@ -189,7 +193,8 @@ void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
 ]
 [
 ```
-void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
+void push_back(int x, std::vector<int>& vec1,
+    std::vector<int>& vec2)
 {
     vec1.push_back(x);
 
@@ -206,7 +211,8 @@ void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
 ]
 [
 ```
-void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
+void push_back(int x, std::vector<int>& vec1,
+    std::vector<int>& vec2)
 {
     vec1.push_back(x);
 
@@ -226,12 +232,16 @@ void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
 ]
 [
 ```
-void push_back(int x, std::vector<int>& vec1, std::vector<int>& vec2)
+void push_back(int x, std::vector<int>& vec1,
+    std::vector<int>& vec2)
 {
     vec1.push_back(x);
 
     // Revert vec1 modification on failure
-    boost::scope::scope_exit rollback_guard{[&] { vec1.pop_back(); }};
+    boost::scope::scope_exit rollback_guard{[&]
+    {
+        vec1.pop_back();
+    }};
 
     vec2.push_back(x);
 
