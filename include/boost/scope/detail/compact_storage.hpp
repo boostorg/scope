@@ -30,22 +30,27 @@ namespace boost {
 namespace scope {
 namespace detail {
 
-template< typename T >
-class compact_storage_base :
+//! The class allows to place data members in the tail padding of type \a T if the user's class derives from it
+template<
+    typename T,
+    typename Tag = void,
+    bool = detail::conjunction< std::is_class< T >, detail::negation< detail::is_final< T > > >::value
+>
+class compact_storage :
     private T
 {
 public:
     template< typename... Args >
-    constexpr compact_storage_base(Args&&... args) noexcept(std::is_nothrow_constructible< T, Args... >::value) :
+    constexpr compact_storage(Args&&... args) noexcept(std::is_nothrow_constructible< T, Args... >::value) :
         T(static_cast< Args&& >(args)...)
     {
     }
 
-    compact_storage_base(compact_storage_base&&) = default;
-    compact_storage_base& operator= (compact_storage_base&&) = default;
+    compact_storage(compact_storage&&) = default;
+    compact_storage& operator= (compact_storage&&) = default;
 
-    compact_storage_base(compact_storage_base const&) = default;
-    compact_storage_base& operator= (compact_storage_base const&) = default;
+    compact_storage(compact_storage const&) = default;
+    compact_storage& operator= (compact_storage const&) = default;
 
     T& get() noexcept
     {
@@ -58,24 +63,24 @@ public:
     }
 };
 
-template< typename T >
-class compact_storage_member
+template< typename T, typename Tag >
+class compact_storage< T, Tag, false >
 {
 private:
     T m_data;
 
 public:
     template< typename... Args >
-    constexpr compact_storage_member(Args&&... args) noexcept(std::is_nothrow_constructible< T, Args... >::value) :
+    constexpr compact_storage(Args&&... args) noexcept(std::is_nothrow_constructible< T, Args... >::value) :
         m_data(static_cast< Args&& >(args)...)
     {
     }
 
-    compact_storage_member(compact_storage_member&&) = default;
-    compact_storage_member& operator= (compact_storage_member&&) = default;
+    compact_storage(compact_storage&&) = default;
+    compact_storage& operator= (compact_storage&&) = default;
 
-    compact_storage_member(compact_storage_member const&) = default;
-    compact_storage_member& operator= (compact_storage_member const&) = default;
+    compact_storage(compact_storage const&) = default;
+    compact_storage& operator= (compact_storage const&) = default;
 
     T& get() noexcept
     {
@@ -86,36 +91,6 @@ public:
     {
         return m_data;
     }
-};
-
-//! The class allows to place data members in the tail padding of type \a T if the user's class derives from it
-template< typename T, typename Tag = void >
-class compact_storage :
-    public std::conditional<
-        detail::conjunction< std::is_class< T >, detail::negation< detail::is_final< T > > >::value,
-        compact_storage_base< T >,
-        compact_storage_member< T >
-    >::type
-{
-private:
-    typedef typename std::conditional<
-        detail::conjunction< std::is_class< T >, detail::negation< detail::is_final< T > > >::value,
-        compact_storage_base< T >,
-        compact_storage_member< T >
-    >::type base_type;
-
-public:
-    template< typename... Args >
-    constexpr compact_storage(Args&&... args) noexcept(std::is_nothrow_constructible< T, Args... >::value) :
-        base_type(static_cast< Args&& >(args)...)
-    {
-    }
-
-    compact_storage(compact_storage&&) = default;
-    compact_storage& operator= (compact_storage&&) = default;
-
-    compact_storage(compact_storage const&) = default;
-    compact_storage& operator= (compact_storage const&) = default;
 };
 
 } // namespace detail
