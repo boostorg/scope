@@ -1,0 +1,25 @@
+{
+  "name": "boost-scope",
+  "version": "1.84.0",
+  "description": "Scope guards from Fundamentals TS 3",
+  "homepage": "https://github.com/Lastique/scope",
+  "dependencies": [
+    {
+      "name": "boost-build",
+      "host": true,
+      "version>=": "1.83.0"
+    },
+    {
+      "name": "boost-config",
+      "version>=": "1.83.0"
+    },
+    {
+      "name": "boost-core",
+      "version>=": "1.83.0"
+    },
+    {
+      "name": "boost-type-traits",
+      "version>=": "1.83.0"
+    }
+  ]
+}

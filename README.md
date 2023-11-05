@@ -34,6 +34,16 @@ example, using a `conanfile.txt`:
 boost_scope/1.0.0
 ````
 
+#### Using vcpkg
+
+````
+git clone https://github.com/Lastique/scope
+vcpkg install boost-scope --overlay-ports=scope/vcpkg/ports/boost-scope
+````
+
+This will install Scope and all the required Boost packages if they were not
+already installed.
+
 ### More information
 
 * Read the [documentation](https://lastique.github.io/scope/libs/scope/doc/html/index.html).
