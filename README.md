@@ -12,7 +12,29 @@ This library is currently proposed for review and potential inclusion into [Boos
 
 ### Installation
 
-#### vcpkg
+#### Using Conan
+
+````
+git clone https://github.com/Lastique/scope
+conan create scope/conan --build missing
+````
+
+This will build a boost_scope package using your default profile and put it
+in the local Conan cache along with all direct and transitive dependencies.
+Since Scope only depends on a few header-only Boost libraries, you can
+save some time by requesting header-only Boost:
+
+```
+conan create scope/conan -o 'boost*:header_only=True' --build missing
+````
+Following one of those approaches you can use the package as usual. For
+example, using a `conanfile.txt`:
+```
+[requires]
+boost_scope/1.0.0
+````
+
+#### Using vcpkg
 
 ````
 git clone https://github.com/Lastique/scope
