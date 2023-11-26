@@ -6,10 +6,10 @@
  * Copyright (c) 2023 Andrey Semashev
  */
 /*!
- * \file   unique_resource_ref_ctor_rv.cpp
+ * \file   unique_resource_ref_reset_rv.cpp
  * \author Andrey Semashev
  *
- * \brief  This file tests that \c unique_resource for reference types is not constructible from rvalues.
+ * \brief  This file tests that \c unique_resource for reference types does not accept rvalues in \c reset().
  */
 
 #include <boost/scope/unique_resource.hpp>
