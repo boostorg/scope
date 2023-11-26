@@ -325,4 +325,4 @@ make_scope_success(F&& func, C&& cond, bool active = true)
 
 #include <boost/scope/detail/footer.hpp>
 
-#endif // BOOST_SCOPE_scope_success_HPP_INCLUDED_
+#endif // BOOST_SCOPE_SCOPE_SUCCESS_HPP_INCLUDED_
