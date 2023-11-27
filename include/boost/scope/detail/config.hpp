@@ -21,12 +21,20 @@
 #pragma once
 #endif
 
-#if !defined(BOOST_SCOPE_DETAIL_DOC_HIDDEN)
-#if !defined(BOOST_SCOPE_DOXYGEN)
-#define BOOST_SCOPE_DETAIL_DOC_HIDDEN(...) __VA_ARGS__
-#else
-#define BOOST_SCOPE_DETAIL_DOC_HIDDEN(...) ...
+#if !(defined(__cpp_noexcept_function_type) && __cpp_noexcept_function_type >= 201510l) && !defined(_NOEXCEPT_TYPES_SUPPORTED)
+#define BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES
 #endif
+
+#if !defined(BOOST_SCOPE_DETAIL_DOC_ALT)
+#if !defined(BOOST_SCOPE_DOXYGEN)
+#define BOOST_SCOPE_DETAIL_DOC_ALT(alt, ...) __VA_ARGS__
+#else
+#define BOOST_SCOPE_DETAIL_DOC_ALT(alt, ...) alt
+#endif
+#endif
+
+#if !defined(BOOST_SCOPE_DETAIL_DOC_HIDDEN)
+#define BOOST_SCOPE_DETAIL_DOC_HIDDEN(...) BOOST_SCOPE_DETAIL_DOC_ALT(..., __VA_ARGS__)
 #endif
 
 #if !defined(BOOST_SCOPE_DETAIL_DOC)

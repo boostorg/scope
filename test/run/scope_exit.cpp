@@ -485,6 +485,55 @@ void check_deduction()
     }
     BOOST_TEST_EQ(n, 1);
 
+    struct local
+    {
+        static void raw_func()
+        {
+            ++g_n;
+        }
+
+        static bool raw_cond()
+        {
+            ++g_c;
+            return true;
+        }
+
+#if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
+        static void raw_func_noexcept() noexcept
+        {
+            ++g_n;
+        }
+
+        static bool raw_cond_noexcept() noexcept
+        {
+            ++g_c;
+            return true;
+        }
+#endif
+    };
+
+    g_n = 0;
+    g_c = 0;
+    {
+        auto guard = boost::scope::make_scope_exit(local::raw_func, local::raw_cond);
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (&)(), bool (&)() >);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+    BOOST_TEST_EQ(g_c, 1);
+
+#if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
+    g_n = 0;
+    g_c = 0;
+    {
+        auto guard = boost::scope::make_scope_exit(local::raw_func_noexcept, local::raw_cond_noexcept);
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (&)() noexcept, bool (&)() noexcept >);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+    BOOST_TEST_EQ(g_c, 1);
+#endif
+
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
     n = 0;
     {
@@ -537,6 +586,28 @@ void check_deduction()
         err = -1;
     }
     BOOST_TEST_EQ(n, 0);
+
+    g_n = 0;
+    g_c = 0;
+    {
+        boost::scope::scope_exit guard{ local::raw_func, local::raw_cond };
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (&)(), bool (&)() >);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+    BOOST_TEST_EQ(g_c, 1);
+
+#if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
+    g_n = 0;
+    g_c = 0;
+    {
+        boost::scope::scope_exit guard{ local::raw_func_noexcept, local::raw_cond_noexcept };
+        BOOST_TEST(guard.active());
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (&)() noexcept, bool (&)() noexcept >);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+    BOOST_TEST_EQ(g_c, 1);
+#endif
 
     n = 0;
     {

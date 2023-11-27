@@ -18,6 +18,7 @@
 #include <boost/scope/detail/config.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
 #include <boost/scope/detail/compact_storage.hpp>
+#include <boost/scope/detail/decay_to_function_ref.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 #include <boost/scope/detail/type_traits/is_invocable.hpp>
@@ -122,8 +123,11 @@ public:
  * \li An lvalue reference to such class.
  * \li An lvalue reference to function taking no arguments.
  *
- * Additionally, the condition function object `operator()` must not throw,
- * as otherwise the action function object may not be called.
+ * The condition function object `operator()` must return a value
+ * contextually convertible to \c true, if the action function object
+ * is allowed to be executed, and \c false otherwise. Additionally,
+ * the condition function object `operator()` must not throw, as
+ * otherwise the action function object may not be called.
  *
  * The condition function object is optional, and if not specified in
  * template parameters, the scope guard will operate as if the condition
@@ -493,46 +497,46 @@ public:
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 template< typename Func >
-scope_exit(Func) -> scope_exit< Func >;
+explicit scope_exit(Func&&) -> scope_exit< typename detail::decay_to_function_ref< Func >::type >;
 
 template< typename Func >
-scope_exit(Func, bool) -> scope_exit< Func >;
+explicit scope_exit(Func&&, bool) -> scope_exit< typename detail::decay_to_function_ref< Func >::type >;
 
 template< typename Func, typename Cond >
-scope_exit(Func, Cond) -> scope_exit< Func, Cond >;
+explicit scope_exit(Func&&, Cond&&) -> scope_exit< typename detail::decay_to_function_ref< Func >::type, typename detail::decay_to_function_ref< Cond >::type >;
 
 template< typename Func, typename Cond >
-scope_exit(Func, Cond, bool) -> scope_exit< Func, Cond >;
+explicit scope_exit(Func&&, Cond&&, bool) -> scope_exit< typename detail::decay_to_function_ref< Func >::type, typename detail::decay_to_function_ref< Cond >::type >;
 
 template< typename Func, typename Cond >
 scope_exit(scope_exit< Func, Cond >&&) -> scope_exit< Func, Cond >;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 
 /*!
- * \brief Creates a scope guard with given callable function object.
+ * \brief Creates a scope guard with a given action function object.
  *
  * **Effects:** Constructs a scope guard as if by calling
- *              `scope_exit< std::remove_cvref_t< F > >(
- *              std::forward< F >(func), active)`.
+ *              `scope_exit< Func >(std::forward< F >(func), active)`, where \c Func
+ *              is the same as \c F if \c F is a reference to function, or
+ *              `std::remove_cvref_t< F >` otherwise.
  *
  * \param func The callable action function object to invoke on destruction.
- * \param cond The callable condition function object.
  * \param active Indicates whether the scope guard should be active upon construction.
  */
 template< typename F >
 inline scope_exit<
-    typename std::remove_cv< typename std::remove_reference< F >::type >::type
+    BOOST_SCOPE_DETAIL_DOC_ALT(Func, typename detail::decay_to_function_ref< F >::type)
 > make_scope_exit(F&& func, bool active = true)
     noexcept(std::is_nothrow_constructible<
         scope_exit<
-            typename std::remove_cv< typename std::remove_reference< F >::type >::type
+            BOOST_SCOPE_DETAIL_DOC_ALT(Func, typename detail::decay_to_function_ref< F >::type)
         >,
         F,
         bool
     >::value)
 {
     return scope_exit<
-        typename std::remove_cv< typename std::remove_reference< F >::type >::type
+        typename detail::decay_to_function_ref< F >::type
     >(static_cast< F&& >(func), active);
 }
 
@@ -540,34 +544,42 @@ inline scope_exit<
  * \brief Creates a conditional scope guard with given callable function objects.
  *
  * **Effects:** Constructs a scope guard as if by calling
- *              `scope_exit< std::remove_cvref_t< F >,
- *              std::remove_cvref_t< C > >(std::forward< F >(func),
- *              std::forward< C >(cond), active)`.
+ *              `scope_exit< Func, Cond >(std::forward< F >(func),
+ *              std::forward< C >(cond), active)`, where \c Func
+ *              is the same as \c F if \c F is a reference to function, or
+ *              `std::remove_cvref_t< F >` otherwise, and \c Cond is similarly
+ *              derived from \c C.
  *
  * \param func The callable action function object to invoke on destruction.
  * \param cond The callable condition function object.
  * \param active Indicates whether the scope guard should be active upon construction.
  */
 template< typename F, typename C >
-inline typename std::enable_if<
+inline
+#if !defined(BOOST_SCOPE_DOXYGEN)
+typename std::enable_if<
     std::is_constructible<
         scope_exit<
-            typename std::remove_cv< typename std::remove_reference< F >::type >::type,
-            typename std::remove_cv< typename std::remove_reference< C >::type >::type
+            typename detail::decay_to_function_ref< F >::type,
+            typename detail::decay_to_function_ref< C >::type
         >,
         F,
         C,
         bool
     >::value,
     scope_exit<
-        typename std::remove_cv< typename std::remove_reference< F >::type >::type,
-        typename std::remove_cv< typename std::remove_reference< C >::type >::type
+        typename detail::decay_to_function_ref< F >::type,
+        typename detail::decay_to_function_ref< C >::type
     >
->::type make_scope_exit(F&& func, C&& cond, bool active = true)
+>::type
+#else
+scope_exit< Func, Cond >
+#endif
+make_scope_exit(F&& func, C&& cond, bool active = true)
     noexcept(std::is_nothrow_constructible<
         scope_exit<
-            typename std::remove_cv< typename std::remove_reference< F >::type >::type,
-            typename std::remove_cv< typename std::remove_reference< C >::type >::type
+            BOOST_SCOPE_DETAIL_DOC_ALT(Func, typename detail::decay_to_function_ref< F >::type),
+            BOOST_SCOPE_DETAIL_DOC_ALT(Cond, typename detail::decay_to_function_ref< C >::type)
         >,
         F,
         C,
@@ -575,8 +587,8 @@ inline typename std::enable_if<
     >::value)
 {
     return scope_exit<
-        typename std::remove_cv< typename std::remove_reference< F >::type >::type,
-        typename std::remove_cv< typename std::remove_reference< C >::type >::type
+        typename detail::decay_to_function_ref< F >::type,
+        typename detail::decay_to_function_ref< C >::type
     >(static_cast< F&& >(func), static_cast< C&& >(cond), active);
 }
 

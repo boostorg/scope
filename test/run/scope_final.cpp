@@ -117,6 +117,37 @@ void check_deduction()
     }
     BOOST_TEST_EQ(n, 1);
 
+    struct local
+    {
+        static void raw_func()
+        {
+            ++g_n;
+        }
+
+#if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
+        static void raw_func_noexcept() noexcept
+        {
+            ++g_n;
+        }
+#endif
+    };
+
+    g_n = 0;
+    {
+        boost::scope::scope_final guard{ local::raw_func };
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< void (&)() >);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+
+#if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
+    g_n = 0;
+    {
+        boost::scope::scope_final guard{ local::raw_func_noexcept };
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< void (&)() noexcept >);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+#endif
+
     n = 0;
     {
         BOOST_SCOPE_FINAL [&n] { ++n; };

@@ -17,6 +17,7 @@
 #include <type_traits>
 #include <boost/scope/detail/config.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
+#include <boost/scope/detail/decay_to_function_ref.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 #include <boost/scope/detail/type_traits/is_nothrow_invocable.hpp>
@@ -43,7 +44,7 @@ using is_not_like_scope_final = detail::is_not_like< T, scope_final >;
 /*!
  * \brief Scope final guard that invokes a function upon leaving the scope.
  *
- * A scope exit guard wraps a function object callable with no arguments
+ * The scope guard wraps a function object callable with no arguments
  * that can be one of:
  *
  * \li A user-defined class with a public `operator()`.
@@ -142,7 +143,7 @@ public:
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 template< typename Func >
-scope_final(Func) -> scope_final< Func >;
+scope_final(Func&&) -> scope_final< typename detail::decay_to_function_ref< Func >::type >;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 
 } // namespace scope

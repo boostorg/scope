@@ -41,6 +41,7 @@ local doxygen_params =
 #        <doxygen:param>"INCLUDE_PATH=../../.."
 #        <doxygen:param>EXCLUDE_SYMBOLS="detail detail::*"
         <doxygen:param>"PREDEFINED=BOOST_SCOPE_DOXYGEN \\
+                        BOOST_SCOPE_DETAIL_DOC_ALT(alt, ...)=alt \\
                         BOOST_SCOPE_DETAIL_DOC_HIDDEN(...)=... \\
                         BOOST_SCOPE_DETAIL_DOC(...)=__VA_ARGS__ \\
                         BOOST_NO_CXX17_DEDUCTION_GUIDES=1 \\
