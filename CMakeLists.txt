@@ -20,6 +20,21 @@ target_link_libraries(boost_scope
         Boost::type_traits
 )
 
+target_compile_features(boost_scope
+    INTERFACE
+        cxx_constexpr
+        cxx_noexcept
+        cxx_rvalue_references
+        cxx_decltype
+        cxx_alias_templates
+        cxx_variadic_templates
+        cxx_variadic_macros
+        cxx_defaulted_functions
+        cxx_deleted_functions
+        cxx_default_function_template_args
+        cxx_delegating_constructors
+)
+
 if (BUILD_TESTING AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/CMakeLists.txt")
     add_subdirectory(test)
 endif()
