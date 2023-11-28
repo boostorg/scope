@@ -19,6 +19,7 @@
 #include <ostream>
 #include <utility>
 #include <stdexcept>
+#include <type_traits>
 
 template< typename Resource >
 struct empty_resource_deleter
@@ -155,6 +156,7 @@ void check_int()
         boost::scope::unique_resource< int, checking_resource_deleter< int > > ur{ 10, checking_resource_deleter< int >(deleted_res1, n) };
         BOOST_TEST_EQ(ur.get(), 10);
         BOOST_TEST(ur.allocated());
+        BOOST_TEST_EQ(noexcept(ur.reset()), noexcept(std::declval< checking_resource_deleter< int >& >()(10)));
         ur.reset();
         BOOST_TEST(!ur.allocated());
         BOOST_TEST_EQ(n, 1);
@@ -279,6 +281,7 @@ void check_int()
         boost::scope::unique_resource< int, void (&)(int) > ur(10, local::raw_func_deleter);
         BOOST_TEST_EQ(ur.get(), 10);
         BOOST_TEST(ur.allocated());
+        BOOST_TEST(!noexcept(ur.reset()));
     }
     BOOST_TEST_EQ(g_n, 1);
 

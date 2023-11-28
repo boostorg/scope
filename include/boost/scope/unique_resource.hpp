@@ -24,6 +24,7 @@
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
 #include <boost/scope/detail/type_traits/is_swappable.hpp>
 #include <boost/scope/detail/type_traits/is_nothrow_swappable.hpp>
+#include <boost/scope/detail/type_traits/is_nothrow_invocable.hpp>
 #include <boost/scope/detail/type_traits/negation.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 #include <boost/scope/detail/type_traits/disjunction.hpp>
@@ -87,7 +88,7 @@ public:
     }
 
     template< typename... Args >
-    void operator() (Args&&... args) const noexcept(noexcept(std::declval< T& >()(std::declval< Args&& >()...)))
+    void operator() (Args&&... args) const noexcept(detail::is_nothrow_invocable< T&, Args&&... >::value)
     {
         (*m_value)(static_cast< Args&& >(args)...);
     }
@@ -1292,7 +1293,7 @@ public:
      *
      * **Throws:** Nothing, unless invoking the deleter throws.
      */
-    ~unique_resource() noexcept(noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())))
+    ~unique_resource() noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(detail::is_nothrow_invocable< deleter_type&, resource_type& >::value))
     {
         reset();
     }
@@ -1346,7 +1347,7 @@ public:
      *
      * \post `this->allocated() == false`
      */
-    void reset() noexcept(noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())))
+    void reset() noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(detail::is_nothrow_invocable< deleter_type&, resource_type& >::value))
     {
         if (BOOST_LIKELY(m_data.is_allocated()))
         {
@@ -1383,7 +1384,7 @@ public:
     reset(R&& res)
         noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(
             detail::conjunction<
-                std::integral_constant< bool, noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())) >,
+                detail::is_nothrow_invocable< deleter_type&, resource_type& >,
                 std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >
             >::value
         ))
@@ -1392,7 +1393,7 @@ public:
         (
             static_cast< typename detail::move_or_copy_assign_ref< R, resource_type >::type >(res),
             typename detail::conjunction<
-                std::integral_constant< bool, noexcept(std::declval< deleter_type& >()(std::declval< resource_type& >())) >,
+                detail::is_nothrow_invocable< deleter_type&, resource_type& >,
                 std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >
             >::type()
         );
