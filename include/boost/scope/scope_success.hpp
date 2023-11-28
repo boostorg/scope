@@ -19,7 +19,6 @@
 #include <boost/scope/exception_checker.hpp>
 #include <boost/scope/scope_exit.hpp>
 #include <boost/scope/detail/is_not_like.hpp>
-#include <boost/scope/detail/decay_to_function_ref.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 #include <boost/scope/detail/type_traits/is_invocable.hpp>
 #include <boost/scope/detail/type_traits/is_nothrow_invocable.hpp>
@@ -96,7 +95,7 @@ public:
  *
  * \li A user-defined class with a public `operator()`.
  * \li An lvalue reference to such class.
- * \li An lvalue reference to function taking no arguments.
+ * \li An lvalue reference or pointer to function taking no arguments.
  *
  * The condition function object `operator()` must return a value
  * contextually convertible to \c true, if the failure is detected and the
@@ -230,63 +229,52 @@ public:
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 template< typename Func >
-explicit scope_success(Func&&) -> scope_success< typename detail::decay_to_function_ref< Func >::type >;
+explicit scope_success(Func) -> scope_success< Func >;
 
 template< typename Func >
-explicit scope_success(Func&&, bool) -> scope_success< typename detail::decay_to_function_ref< Func >::type >;
+explicit scope_success(Func, bool) -> scope_success< Func >;
 
 template<
     typename Func,
     typename Cond,
     typename = typename std::enable_if< detail::is_invocable< Cond const& >::value >::type
 >
-explicit scope_success(Func&&, Cond&&) -> scope_success< typename detail::decay_to_function_ref< Func >::type, typename detail::decay_to_function_ref< Cond >::type >;
+explicit scope_success(Func, Cond) -> scope_success< Func, Cond >;
 
 template<
     typename Func,
     typename Cond,
     typename = typename std::enable_if< detail::is_invocable< Cond const& >::value >::type
 >
-explicit scope_success(Func&&, Cond&&, bool) -> scope_success< typename detail::decay_to_function_ref< Func >::type, typename detail::decay_to_function_ref< Cond >::type >;
+explicit scope_success(Func, Cond, bool) -> scope_success< Func, Cond >;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 
 /*!
  * \brief Creates a scope fail guard with a given action function object.
  *
  * **Effects:** Constructs a scope guard as if by calling
- *              `scope_success< Func >(std::forward< F >(func), active)`, where \c Func
- *              is the same as \c F if \c F is a reference to function, or
- *              `std::remove_cvref_t< F >` otherwise.
+ *              `scope_success< std::decay_t< F > >(std::forward< F >(func), active)`.
  *
  * \param func The callable function object to invoke on destruction.
  * \param active Indicates whether the scope guard should be active upon construction.
  */
 template< typename F >
-inline scope_success<
-    BOOST_SCOPE_DETAIL_DOC_ALT(Func, typename detail::decay_to_function_ref< F >::type)
-> make_scope_success(F&& func, bool active = true)
+inline scope_success< typename std::decay< F >::type > make_scope_success(F&& func, bool active = true)
     noexcept(std::is_nothrow_constructible<
-        scope_success<
-            BOOST_SCOPE_DETAIL_DOC_ALT(Func, typename detail::decay_to_function_ref< F >::type)
-        >,
+        scope_success< typename std::decay< F >::type >,
         F,
         bool
     >::value)
 {
-    return scope_success<
-        typename detail::decay_to_function_ref< F >::type
-    >(static_cast< F&& >(func), active);
+    return scope_success< typename std::decay< F >::type >(static_cast< F&& >(func), active);
 }
 
 /*!
  * \brief Creates a scope fail with given callable function objects.
  *
  * **Effects:** Constructs a scope guard as if by calling
- *              `scope_success< Func, Cond >(std::forward< F >(func),
- *              std::forward< C >(cond), active)`, where \c Func
- *              is the same as \c F if \c F is a reference to function, or
- *              `std::remove_cvref_t< F >` otherwise, and \c Cond is similarly
- *              derived from \c C.
+ *              `scope_success< std::decay_t< F >, std::decay_t< C > >(
+ *              std::forward< F >(func), std::forward< C >(cond), active)`.
  *
  * \param func The callable action function object to invoke on destruction.
  * \param cond The callable failure condition function object.
@@ -297,29 +285,20 @@ inline
 #if !defined(BOOST_SCOPE_DOXYGEN)
 typename std::enable_if<
     detail::is_invocable< C const& >::value,
-    scope_success<
-        typename detail::decay_to_function_ref< F >::type,
-        typename detail::decay_to_function_ref< C >::type
-    >
+    scope_success< typename std::decay< F >::type, typename std::decay< C >::type >
 >::type
 #else
-scope_success< Func, Cond >
+scope_success< typename std::decay< F >::type, typename std::decay< C >::type >
 #endif
 make_scope_success(F&& func, C&& cond, bool active = true)
     noexcept(std::is_nothrow_constructible<
-        scope_success<
-            BOOST_SCOPE_DETAIL_DOC_ALT(Func, typename detail::decay_to_function_ref< F >::type),
-            BOOST_SCOPE_DETAIL_DOC_ALT(Cond, typename detail::decay_to_function_ref< C >::type)
-        >,
+        scope_success< typename std::decay< F >::type, typename std::decay< C >::type >,
         F,
         C,
         bool
     >::value)
 {
-    return scope_success<
-        typename detail::decay_to_function_ref< F >::type,
-        typename detail::decay_to_function_ref< C >::type
-    >(static_cast< F&& >(func), static_cast< C&& >(cond), active);
+    return scope_success< typename std::decay< F >::type, typename std::decay< C >::type >(static_cast< F&& >(func), static_cast< C&& >(cond), active);
 }
 
 } // namespace scope

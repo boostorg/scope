@@ -135,7 +135,7 @@ void check_deduction()
     g_n = 0;
     {
         boost::scope::scope_final guard{ local::raw_func };
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< void (&)() >);
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< void (*)() >);
     }
     BOOST_TEST_EQ(g_n, 1);
 
@@ -143,7 +143,7 @@ void check_deduction()
     g_n = 0;
     {
         boost::scope::scope_final guard{ local::raw_func_noexcept };
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< void (&)() noexcept >);
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< void (*)() noexcept >);
     }
     BOOST_TEST_EQ(g_n, 1);
 #endif

@@ -18,7 +18,7 @@ The wrapped action function object is specified on the scope guard construction 
 
 * a user-defined class with a public `operator()` taking no arguments, or
 * an lvalue reference to such class, or
-* an lvalue reference to a function taking no arguments.
+* an lvalue reference or pointer to a function taking no arguments.
 
 Note that if the wrapped function is a reference to a function object, that object must be stored externally to the scope guard and
 must remain valid for the entire lifetime of the scope guard.
@@ -138,7 +138,7 @@ satisfy the following requirements:
 * a condition function object must be one of:
     * a user-defined class with a public `operator()` taking no arguments, or
     * an lvalue reference to such class, or
-    * an lvalue reference to a function taking no arguments;
+    * an lvalue reference or pointer to a function taking no arguments;
 * invoking the condition function object must return a value contextually convertible to `bool`, and
 * invoking the condition function object must not throw exceptions.
 

@@ -517,7 +517,7 @@ void check_deduction()
     {
         auto guard = boost::scope::make_scope_exit(local::raw_func, local::raw_cond);
         BOOST_TEST(guard.active());
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (&)(), bool (&)() >);
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (*)(), bool (*)() >);
     }
     BOOST_TEST_EQ(g_n, 1);
     BOOST_TEST_EQ(g_c, 1);
@@ -528,7 +528,7 @@ void check_deduction()
     {
         auto guard = boost::scope::make_scope_exit(local::raw_func_noexcept, local::raw_cond_noexcept);
         BOOST_TEST(guard.active());
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (&)() noexcept, bool (&)() noexcept >);
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (*)() noexcept, bool (*)() noexcept >);
     }
     BOOST_TEST_EQ(g_n, 1);
     BOOST_TEST_EQ(g_c, 1);
@@ -592,7 +592,7 @@ void check_deduction()
     {
         boost::scope::scope_exit guard{ local::raw_func, local::raw_cond };
         BOOST_TEST(guard.active());
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (&)(), bool (&)() >);
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (*)(), bool (*)() >);
     }
     BOOST_TEST_EQ(g_n, 1);
     BOOST_TEST_EQ(g_c, 1);
@@ -603,7 +603,7 @@ void check_deduction()
     {
         boost::scope::scope_exit guard{ local::raw_func_noexcept, local::raw_cond_noexcept };
         BOOST_TEST(guard.active());
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (&)() noexcept, bool (&)() noexcept >);
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_exit< void (*)() noexcept, bool (*)() noexcept >);
     }
     BOOST_TEST_EQ(g_n, 1);
     BOOST_TEST_EQ(g_c, 1);
