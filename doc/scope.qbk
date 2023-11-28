@@ -31,9 +31,10 @@
 [section:intro Introduction]
 
 The Boost.Scope library is a collection of utilities helping with code execution upon leaving a scope and automatic resource management. The library contains
-components that were defined in the [@https://cplusplus.github.io/fundamentals-ts/v3.html C++ Extensions for Library Fundamentals, Version 3] technical specification,
-in the [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`] standard library
-header. The library also contains extensions to the Fundamentals TS that improve usability or efficiency of the components.
+components that were specified in the [@https://cplusplus.github.io/fundamentals-ts/v3.html C++ Extensions for Library Fundamentals, Version 3] technical specification,
+in the [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`] standard library header, originally defined in
+[@https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0052r10.pdf P0052R10]. The library also contains extensions to the Fundamentals TS that improve
+usability or efficiency of the components.
 
 The components provided by the library can be divided into two categories:
 
