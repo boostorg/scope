@@ -507,9 +507,6 @@ explicit scope_exit(Func&&, Cond&&) -> scope_exit< typename detail::decay_to_fun
 
 template< typename Func, typename Cond >
 explicit scope_exit(Func&&, Cond&&, bool) -> scope_exit< typename detail::decay_to_function_ref< Func >::type, typename detail::decay_to_function_ref< Cond >::type >;
-
-template< typename Func, typename Cond >
-scope_exit(scope_exit< Func, Cond >&&) -> scope_exit< Func, Cond >;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 
 /*!

@@ -204,9 +204,6 @@ template<
     typename = typename std::enable_if< detail::is_invocable< Cond const& >::value >::type
 >
 explicit scope_fail(Func&&, Cond&&, bool) -> scope_fail< typename detail::decay_to_function_ref< Func >::type, typename detail::decay_to_function_ref< Cond >::type >;
-
-template< typename Func, typename Cond >
-scope_fail(scope_fail< Func, Cond >&&) -> scope_fail< Func, Cond >;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 
 /*!
