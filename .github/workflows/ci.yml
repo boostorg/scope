@@ -487,17 +487,20 @@ jobs:
             B2_ARGS+=("libs/$LIBRARY/test")
             ./b2 "${B2_ARGS[@]}"
 
-      - name: Run CMake tests
+      - name: Build CMake tests
         if: matrix.cmake_tests
         run: |
             cd ../boost-root
             mkdir __build_static__ && cd __build_static__
-            cmake ../libs/$LIBRARY/test/test_cmake
-            cmake --build . --target boost_${LIBRARY}_cmake_self_test -j $BUILD_JOBS
-            cd ..
-            mkdir __build_shared__ && cd __build_shared__
-            cmake -DBUILD_SHARED_LIBS=On ../libs/$LIBRARY/test/test_cmake
-            cmake --build . --target boost_${LIBRARY}_cmake_self_test -j $BUILD_JOBS
+            cmake -DBOOST_INCLUDE_LIBRARIES=$LIBRARY -DBUILD_TESTING=ON ..
+            cmake --build . --target tests -j $BUILD_JOBS
+
+      - name: Run CMake tests
+        if: matrix.cmake_tests
+        run: |
+            cd ../boost-root
+            cd __build_static__
+            ctest --output-on-failure --no-tests=error
 
   windows:
     strategy:
