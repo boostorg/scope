@@ -1071,6 +1071,21 @@ void check_throw_deleter()
 
 void check_deduction()
 {
+    struct local
+    {
+        static void raw_func_deleter(int)
+        {
+            ++g_n;
+        }
+
+#if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
+        static void raw_func_deleter_noexcept(int) noexcept
+        {
+            ++g_n;
+        }
+#endif
+    };
+
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
     {
         typedef boost::scope::unique_resource< int, empty_resource_deleter< int > > expected_unique_resource_t;
@@ -1082,6 +1097,18 @@ void check_deduction()
         boost::scope::unique_resource ur{ struct_resource(), empty_resource_deleter< struct_resource >() };
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
     }
+    {
+        typedef boost::scope::unique_resource< int, void(*)(int) > expected_unique_resource_t;
+        boost::scope::unique_resource ur{ 0, local::raw_func_deleter };
+        BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
+    }
+#if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
+    {
+        typedef boost::scope::unique_resource< int, void(*)(int) noexcept > expected_unique_resource_t;
+        boost::scope::unique_resource ur{ 0, local::raw_func_deleter_noexcept };
+        BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
+    }
+#endif
     {
         typedef boost::scope::unique_resource< int, empty_resource_deleter< int > > expected_unique_resource_t;
         boost::scope::unique_resource ur1{ 0, empty_resource_deleter< int >() };
@@ -1113,6 +1140,19 @@ void check_deduction()
     }
     BOOST_TEST_EQ(n, 0);
     BOOST_TEST_EQ(deleted_res, -1);
+
+    {
+        typedef boost::scope::unique_resource< int, void(*)(int) > expected_unique_resource_t;
+        auto ur = boost::scope::make_unique_resource_checked(0, 0, local::raw_func_deleter);
+        BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
+    }
+#if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
+    {
+        typedef boost::scope::unique_resource< int, void(*)(int) noexcept > expected_unique_resource_t;
+        auto ur = boost::scope::make_unique_resource_checked(0, 0, local::raw_func_deleter_noexcept);
+        BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
+    }
+#endif
 
     n = 0;
     try

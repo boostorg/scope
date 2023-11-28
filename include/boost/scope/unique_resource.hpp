@@ -1520,10 +1520,7 @@ template<
     typename Deleter,
     typename = typename std::enable_if< !detail::is_default_resource< Resource >::value >::type
 >
-unique_resource(Resource&&, Deleter&&) -> unique_resource<
-    typename std::remove_cv< typename std::remove_reference< Resource >::type >::type,
-    typename std::remove_cv< typename std::remove_reference< Deleter >::type >::type
->;
+unique_resource(Resource, Deleter) -> unique_resource< Resource, Deleter >;
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
 
 /*!
