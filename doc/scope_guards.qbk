@@ -97,11 +97,9 @@ after it is created.
 
             bool inserted;
             std::tie(it, inserted) = objects.insert(obj);
-            if (inserted)
-            {
-                // Activate rollback guard
-                rollback_guard.set_active(true);
-            }
+
+            // Activate rollback guard, if needed
+            rollback_guard.set_active(inserted);
 
             obj->on_added_to_collection(*this);
         }
