@@ -86,8 +86,8 @@ public:
 } // namespace detail
 
 /*!
- * \brief Scope exit guard that invokes a function upon leaving the scope with
- *        a failure condition not satisfied.
+ * \brief Scope exit guard that invokes a function upon leaving the scope, if
+ *        a failure condition is not satisfied.
  *
  * The scope guard wraps two function objects: the scope guard action and
  * a failure condition for invoking the action. Both function objects must
