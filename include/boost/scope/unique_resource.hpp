@@ -727,7 +727,7 @@ public:
             std::is_nothrow_constructible< resource_holder, R, D, bool >,
             std::is_nothrow_constructible< deleter_holder, D, resource_type&, bool >
         >::value) :
-        unique_resource_data(static_cast< R&& >(res), static_cast< D&& >(del), traits_type::is_allocated(static_cast< R&& >(res)))
+        unique_resource_data(static_cast< R&& >(res), static_cast< D&& >(del), traits_type::is_allocated(res)) // don't forward res to is_allocated to make sure res is not moved-from on resource construction
     {
     }
 
