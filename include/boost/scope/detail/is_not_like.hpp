@@ -26,6 +26,7 @@ namespace boost {
 namespace scope {
 namespace detail {
 
+//! The type trait checks if \c T is not a possibly cv-reference-qualified specialization of \c Template
 template< typename T, template< typename... > class Template >
 struct is_not_like : public std::true_type { };
 template< typename T, template< typename... > class Template >
