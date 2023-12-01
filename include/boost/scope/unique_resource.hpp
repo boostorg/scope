@@ -618,10 +618,7 @@ private:
     {
         boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
         boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-
-        const bool allocated = m_allocated;
-        m_allocated = that.m_allocated;
-        that.m_allocated = allocated;
+        boost::core::invoke_swap(m_allocated, that.m_allocated);
     }
 
     void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
@@ -637,9 +634,7 @@ private:
             throw;
         }
 
-        const bool allocated = m_allocated;
-        m_allocated = that.m_allocated;
-        that.m_allocated = allocated;
+        boost::core::invoke_swap(m_allocated, that.m_allocated);
     }
 
     void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
@@ -655,9 +650,7 @@ private:
             throw;
         }
 
-        const bool allocated = m_allocated;
-        m_allocated = that.m_allocated;
-        that.m_allocated = allocated;
+        boost::core::invoke_swap(m_allocated, that.m_allocated);
     }
 };
 
