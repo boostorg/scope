@@ -202,13 +202,13 @@ private:
 
     template< typename R, typename D >
     explicit resource_holder(R&& res, D&& del, bool allocated, std::false_type) try :
-        resource_base(static_cast< R&& >(res))
+        resource_base(res)
     {
     }
     catch (...)
     {
         if (allocated)
-            del(static_cast< R&& >(res));
+            del(res);
     }
 };
 
@@ -280,13 +280,13 @@ private:
 
     template< typename R, typename D >
     explicit resource_holder(R&& res, D&& del, bool allocated, std::false_type) try :
-        resource_base(static_cast< R&& >(res))
+        resource_base(res)
     {
     }
     catch (...)
     {
         if (allocated)
-            del(static_cast< R&& >(res));
+            del(res);
     }
 };
 
@@ -357,7 +357,7 @@ private:
 
     template< typename D >
     explicit deleter_holder(D&& del, resource_type& res, bool allocated, std::false_type) try :
-        deleter_base(static_cast< D&& >(del))
+        deleter_base(del)
     {
     }
     catch (...)
