@@ -421,7 +421,7 @@ directly.
 
 [section:runtime_defined Setting up scope exit actions at run time]
 
-It is possible to use scope guard classes to implement scope exit actions that are initialized at run time. To implement this, one could use
+It is possible to use scope guard classes to implement scope exit actions that are initialized at run time. One way to do this is to use
 a function object wrapper such as `std::function` together with the scope guard to schedule the function call. For example:
 
     using cleanup_func_t = std::function< void() >;
@@ -468,13 +468,15 @@ having to invent a variable name. Also note that the function wrapper must be va
         };
     }
 
-However, when setting up scope exit actions at run time like that, users should be aware that function wrappers typically use dynamic
-memory allocation internally and copy the function object data, which may involve calling copy constructors that may also fail with an
-exception. Although many standard library implementations use small object optimization for `std::function`, and this technique is also
-used in other implementations like __boost_function__, it is generally not guaranteed that initializing the function wrapper with a given
-function object will not throw. If setting up the scope exit action needs to be a non-throwing operation (for example, if the scope guard
-is supposed to revert the effects of the immediately preceding operation), it is recommended to initialize inactive scope guards beforehand
-and only activate one of them at a later point in the program.
+However, users should be aware that function wrappers typically use dynamic memory allocation internally and copy the function object data,
+which may involve calling copy constructors that may also fail with an exception. Although many standard library implementations use small
+object optimization for `std::function`, and this technique is also used in other implementations like __boost_function__, it is generally
+not guaranteed that initializing the function wrapper with a given function object will not throw. Because of this, using `std::function`
+and similar wrappers is usually not recommended.
+
+If setting up the scope exit action needs to be a non-throwing operation (for example, if the scope guard is supposed to revert the effects
+of the immediately preceding operation), it is recommended to initialize inactive scope guards beforehand and only activate one of them at
+a later point in the program.
 
     // Create inactive scope guards for both branches
     boost::scope::scope_exit cleanup_true([]
