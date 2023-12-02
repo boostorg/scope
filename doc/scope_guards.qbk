@@ -14,7 +14,8 @@ A scope guard is an object that invokes an arbitrary /action/ function object on
 actions that need to be reliably performed upon control leaving an execution scope (for example, when returning from a function), which
 is especially helpful for handling exceptions.
 
-The wrapped action function object is specified on the scope guard construction and cannot be changed afterwards. It must be one of:
+The wrapped action function object is specified on the scope guard construction and cannot be changed afterwards. Its type must be one
+of:
 
 * a user-defined class with a public `operator()` taking no arguments, or
 * an lvalue reference to such class, or
@@ -133,7 +134,7 @@ As discussed before, [class_scope_scope_exit], [class_scope_scope_success] and [
 condition function object that will be called to decide whether the scope guard should invoke the action. A condition function object must
 satisfy the following requirements:
 
-* a condition function object must be one of:
+* the type of a condition function object must be one of:
     * a user-defined class with a public `operator()` taking no arguments, or
     * an lvalue reference to such class, or
     * an lvalue reference or pointer to a function taking no arguments;
