@@ -90,7 +90,7 @@ after it is created.
         {
             // Create a deactivated scope guard initially
             std::set< std::shared_ptr< object > >::iterator it;
-            boost::scope::scope_fail rollback_guard{[&, this]
+            boost::scope::scope_fail rollback_guard{[&]
             {
                 objects.erase(it);
             },
@@ -110,7 +110,7 @@ The code sample above relies on C++17 [@https://en.cppreference.com/w/cpp/langua
 argument deduction (CTAD)] for `scope_fail` to deduce the function object type (which is the lambda). If this feature is not available,
 the scope guard construction can be rewritten using a factory function, like this:
 
-    auto rollback_guard = boost::scope::make_scope_fail([&, this]
+    auto rollback_guard = boost::scope::make_scope_fail([&]
     {
         objects.erase(it);
     },
@@ -122,6 +122,39 @@ functions are named as `make_<scope_guard>` and accept the same arguments as the
 Scope guards described in this section are move-constructible (but not assignable), which requires the wrapped function objects to be
 move- or copy-constructible as well. After moving, the moved-from scope guard becomes inactive. If a moved-from scope guard is active
 on destruction, the behavior is undefined.
+
+When using scope guards, users should make sure that all variables captured by reference are still in a valid state upon the scope guard
+destruction. This especially pertains to lambda functions that capture variables by reference by default (i.e. where the capture clause
+starts with `&`). Consider the following example:
+
+    std::unique_ptr< int > bad(std::unique_ptr< int > ptr)
+    {
+        boost::scope::scope_exit guard{[&]
+        {
+            std::cout << "processed: " << *ptr << std::endl;
+        }};
+
+        process(*ptr);
+
+        return ptr; // moves from ptr, leaving it null for the scope guard action
+    }
+
+In cases like this consider capturing by value in the function object or moving the scope guard to a deeper scope, so that it executes
+its action before the variables captured by reference become invalid.
+
+    std::unique_ptr< int > good(std::unique_ptr< int > ptr)
+    {
+        {
+            boost::scope::scope_exit guard{[&]
+            {
+                std::cout << "processed: " << *ptr << std::endl;
+            }};
+
+            process(*ptr);
+        } // <- scope guard action runs here, before ptr is moved-from
+
+        return ptr;
+    }
 
 [endsect]
 
