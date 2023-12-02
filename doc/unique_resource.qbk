@@ -43,7 +43,8 @@ each operation in the [class_scope_unique_resource] class reference.
 [tip If the resource type is dereferenceable (i.e. supports unary `operator*`), [class_scope_unique_resource] also provides `operator*` and
 `operator->`, making it act more like a smart-pointer.]
 
-Let's consider a usage example.
+Let's consider a usage example. Here, we need to compare the contents of two files; `equal_files` returns `true` if the files have equal
+contents and `false` otherwise.
 
     // A deleter for POSIX-like file descriptors
     struct fd_deleter
@@ -55,24 +56,27 @@ Let's consider a usage example.
         }
     };
 
-    // Writes a string to a file
-    void write_string(std::string const& filename, std::string const& str)
+    // Opens a file with the given filename for reading and returns wrapped file descriptor
+    boost::scope::unique_resource< int, fd_deleter > open_file(std::string const& filename)
     {
-        // Create a unique resource for a file
-        boost::scope::unique_resource< int, fd_deleter > file(open(filename.c_str(), O_CREAT | O_WRONLY));
+        boost::scope::unique_resource< int, fd_deleter > file(open(filename.c_str(), O_RDONLY));
         if (file.get() < 0)
         {
             int err = errno;
             throw std::system_error(err, std::generic_category(), "Failed to open file " + filename);
         }
 
-        // Use it to write data to the file
-        const char* p = str.data();
-        std::size_t size_left = str.size();
-        while (size_left > 0)
+        return file;
+    }
+
+    // Reads contents of a file denoted by fd into buffer and returns the number of read bytes
+    std::size_t read_file(int fd, unsigned char* buf, std::size_t size)
+    {
+        std::size_t total_read_size = 0;
+        while (total_read_size < size)
         {
-            ssize_t written = write(file.get(), p, size_left);
-            if (written < 0)
+            ssize_t read_size = read(fd, buf + total_read_size, size - total_read_size);
+            if (read_size < 0)
             {
                 int err = errno;
                 if (err == EINTR)
@@ -80,9 +84,54 @@ Let's consider a usage example.
                 throw std::system_error(err, std::generic_category(), "Failed to write data");
             }
 
-            p += written;
-            size_left -= written;
+            if (read_size == 0)
+            {
+                // End of file
+                break;
+            }
+
+            total_read_size += read_size;
         }
+
+        return total_read_size;
+    }
+
+    // Compares contents of two files for equality
+    bool equal_files(std::string const& filename1, std::string const& filename2)
+    {
+        // Create unique resource wrappers for files
+        auto file1 = open_file(filename1.c_str());
+        auto file2 = open_file(filename2.c_str());
+
+        // Use them to read file contents
+        constexpr std::size_t buf_size = 1024;
+        unsigned char buf1[buf_size];
+        unsigned char buf2[buf_size];
+        while (true)
+        {
+            std::size_t size1 = read_file(file1.get(), buf1, buf_size);
+            std::size_t size2 = read_file(file2.get(), buf2, buf_size);
+
+            if (size1 != size2)
+            {
+                // File sizes are different
+                return false;
+            }
+
+            if (std::memcmp(buf1, buf2, size1) != 0)
+            {
+                // File contents are different
+                return false;
+            }
+
+            if (size1 < buf_size)
+            {
+                // Files have ended. At this point we know they have equal contents.
+                break;
+            }
+        }
+
+        return true;
     }
 
 [note POSIX-like file descriptors are supported on Windows through non-standard APIs like
@@ -109,6 +158,7 @@ constructed in allocated state, we have to check the file descriptor value for b
 can use the `get` method of [class_scope_unique_resource].
 
 We can improve this example by making [class_scope_unique_resource] initialization automatically check for the file descriptor validity.
+This will only require modifying `fd_deleter` and `open_file`, the rest of the code stays unchanged.
 
     // A deleter for POSIX-like file descriptors
     struct fd_deleter
@@ -119,12 +169,11 @@ We can improve this example by making [class_scope_unique_resource] initializati
         }
     };
 
-    // Writes a string to a file
-    void write_string(std::string const& filename, std::string const& str)
+    // Opens a file with the given filename for reading and returns wrapped file descriptor
+    boost::scope::unique_resource< int, fd_deleter > open_file(std::string const& filename)
     {
-        // Create a unique resource for a file
         auto file = boost::scope::make_unique_resource_checked(
-            open(filename.c_str(), O_CREAT | O_WRONLY)
+            open(filename.c_str(), O_RDONLY)
             -1,
             fd_deleter());
         if (!file.allocated())
@@ -133,8 +182,7 @@ We can improve this example by making [class_scope_unique_resource] initializati
             throw std::system_error(err, std::generic_category(), "Failed to open file " + filename);
         }
 
-        // Use it to write data to the file
-        // ...
+        return file;
     }
 
 Here, the `make_unique_resource_checked` helper function performs the following:
@@ -146,7 +194,7 @@ Here, the `make_unique_resource_checked` helper function performs the following:
 
 Note that if `open` fails and returns -1, the deleter is guaranteed not to be called on this resource value - neither by
 `make_unique_resource_checked` nor by [class_scope_unique_resource], not even if [class_scope_unique_resource] construction fails with an
-exception. This allows us to simplify `fd_deleter` and remove the check for `fd` being non-negative.
+exception. This allows us to simplify `fd_deleter` and remove the check for negative `fd` values.
 
 Furthermore, since the returned [class_scope_unique_resource] object now properly indicates whether the resource is allocated or not,
 we can use the `allocated` member function to test it instead of checking the resource value. This makes the code more readable.
@@ -179,7 +227,8 @@ as follows:
 * Default constructor, `reset`, move constructor and move assignment of [class_scope_unique_resource] will use `make_default` to initialize
   the resource value in the unallocated wrapper (for move operations - in the move source).
 
-Using the resource traits allow us to further improve the example given in the previous section.
+Using the resource traits allow us to further improve the example given in the previous section. Again, our primary interest is `open_file`
+and `unique_resource` type usage, the rest of `equal_files` implementation remains unchanged.
 
     // A deleter for POSIX-like file descriptors
     struct fd_deleter
@@ -208,19 +257,17 @@ Using the resource traits allow us to further improve the example given in the p
     // A shorthand type alias for unique file descriptor wrappers
     using unique_fd = boost::scope::unique_resource< int, fd_deleter, fd_resource_traits >;
 
-    // Writes a string to a file
-    void write_string(std::string const& filename, std::string const& str)
+    // Opens a file with the given filename for reading and returns wrapped file descriptor
+    unique_fd open_file(std::string const& filename)
     {
-        // Create a unique resource for a file
-        unique_fd file(open(filename.c_str(), O_CREAT | O_WRONLY));
+        unique_fd file(open(filename.c_str(), O_RDONLY));
         if (!file.allocated())
         {
             int err = errno;
             throw std::system_error(err, std::generic_category(), "Failed to open file " + filename);
         }
 
-        // Use it to write data to the file
-        // ...
+        return file;
     }
 
 In this piece of code, we no longer need to use `make_unique_resource_checked` every time we open a file (or otherwise create a file
