@@ -129,6 +129,8 @@ starts with `&`). Consider the following example:
 
     std::unique_ptr< int > bad(std::unique_ptr< int > ptr)
     {
+        assert(ptr != nullptr);
+
         boost::scope::scope_exit guard{[&]
         {
             std::cout << "processed: " << *ptr << std::endl;
@@ -144,6 +146,8 @@ its action before the variables captured by reference become invalid.
 
     std::unique_ptr< int > good(std::unique_ptr< int > ptr)
     {
+        assert(ptr != nullptr);
+
         {
             boost::scope::scope_exit guard{[&]
             {
