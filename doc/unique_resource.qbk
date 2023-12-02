@@ -205,8 +205,8 @@ Using the resource traits allow us to further improve the example given in the p
         }
     };
 
-    // A shorthand typedef for unique file descriptor wrappers
-    typedef boost::scope::unique_resource< int, fd_deleter, fd_resource_traits > unique_fd;
+    // A shorthand type alias for unique file descriptor wrappers
+    using unique_fd = boost::scope::unique_resource< int, fd_deleter, fd_resource_traits >;
 
     // Writes a string to a file
     void write_string(std::string const& filename, std::string const& str)
