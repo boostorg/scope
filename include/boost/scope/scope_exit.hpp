@@ -19,6 +19,7 @@
 #include <boost/scope/detail/is_not_like.hpp>
 #include <boost/scope/detail/compact_storage.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
+#include <boost/scope/detail/is_nonnull_default_constructible.hpp>
 #include <boost/scope/detail/type_traits/conjunction.hpp>
 #include <boost/scope/detail/type_traits/is_invocable.hpp>
 #include <boost/scope/detail/type_traits/is_nothrow_invocable.hpp>
@@ -275,7 +276,8 @@ public:
     /*!
      * \brief Constructs a scope guard with a given callable action function object.
      *
-     * **Requires:** \c Func is constructible from \a func. \c Cond is nothrow default-constructible.
+     * **Requires:** \c Func is constructible from \a func. \c Cond is nothrow default-constructible
+     *               and is not a pointer to function.
      *
      * \note The requirement for \c Cond default constructor to be non-throwing is to allow for
      *       the condition function object to be called in case if constructing either function
@@ -295,7 +297,7 @@ public:
         typename F
         //! \cond
         , typename = typename std::enable_if< detail::conjunction<
-            std::is_nothrow_default_constructible< Cond >,
+            detail::is_nothrow_nonnull_default_constructible< Cond >,
             std::is_constructible<
                 data,
                 typename detail::move_or_copy_construct_ref< F, Func >::type,

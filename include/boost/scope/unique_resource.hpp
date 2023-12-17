@@ -22,6 +22,7 @@
 #include <boost/scope/detail/compact_storage.hpp>
 #include <boost/scope/detail/move_or_copy_assign_ref.hpp>
 #include <boost/scope/detail/move_or_copy_construct_ref.hpp>
+#include <boost/scope/detail/is_nonnull_default_constructible.hpp>
 #include <boost/scope/detail/type_traits/is_swappable.hpp>
 #include <boost/scope/detail/type_traits/is_nothrow_swappable.hpp>
 #include <boost/scope/detail/type_traits/is_nothrow_invocable.hpp>
@@ -302,10 +303,10 @@ public:
 
 public:
     template<
-        bool Requires = std::is_default_constructible< internal_deleter_type >::value,
+        bool Requires = detail::is_nonnull_default_constructible< internal_deleter_type >::value,
         typename = typename std::enable_if< Requires >::type
     >
-    constexpr deleter_holder() noexcept(std::is_nothrow_default_constructible< internal_deleter_type >::value) :
+    constexpr deleter_holder() noexcept(detail::is_nothrow_nonnull_default_constructible< internal_deleter_type >::value) :
         deleter_base()
     {
     }
@@ -1064,7 +1065,8 @@ public:
     /*!
      * \brief Constructs an unallocated unique resource guard.
      *
-     * **Requires:** Default \c Resource value can be constructed and \c Deleter is default-constructible.
+     * **Requires:** Default \c Resource value can be constructed. \c Deleter is default-constructible
+     *               and is not a pointer to function.
      *
      * **Effects:** Initializes the \c Resource object with the default resource value. Default-constructs
      *              the \c Deleter object.
@@ -1126,7 +1128,8 @@ public:
     /*!
      * \brief Constructs a unique resource guard with the given resource and a default-constructed deleter.
      *
-     * **Requires:** \c Resource is constructible from \a res and \c Deleter is default-constructible.
+     * **Requires:** \c Resource is constructible from \a res. \c Deleter is default-constructible and
+     *               is not a pointer to function.
      *
      * **Effects:** Constructs the unique resource object as if by calling
      *              `unique_resource(std::forward< R >(res), Deleter())`.
@@ -1139,7 +1142,7 @@ public:
         typename R
         //! \cond
         , typename = typename std::enable_if< detail::conjunction<
-            std::is_nothrow_default_constructible< deleter_type >,
+            detail::is_nothrow_nonnull_default_constructible< deleter_type >,
             std::is_constructible< data, typename detail::move_or_copy_construct_ref< R, resource_type >::type, typename detail::move_or_copy_construct_ref< deleter_type >::type >,
             detail::disjunction< detail::negation< std::is_reference< resource_type > >, std::is_reference< R > > // prevent binding lvalue-reference resource to an rvalue
         >::value >::type
