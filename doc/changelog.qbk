@@ -1,5 +1,5 @@
 [/
- / Copyright 2023 Andrey Semashev
+ / Copyright 2023-2024 Andrey Semashev
  /
  / Distributed under the Boost Software License, Version 1.0.
  / (See accompanying file LICENSE_1_0.txt or copy at
@@ -9,6 +9,15 @@
  /]
 
 [section:changelog Changelog]
+
+[heading 0.2]
+
+Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/255717.php review] comments and conditions:
+
+* Renamed `scope_final` to `defer_guard` and `BOOST_SCOPE_FINAL` to `BOOST_SCOPE_DEFER`. Thanks to Peter Dimov for the
+  [@https://lists.boost.org/Archives/boost/2023/12/255501.php suggestion] during the review. The name "defer" is being
+  used in other programming languages (Go, Swift and even [@https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2895.htm proposed]
+  for inclusion in C) for the functionality similar to `scope_final`.
 
 [heading 0.1]
 

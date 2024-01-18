@@ -1,7 +1,7 @@
 [library Boost.Scope
     [quickbook 1.7]
     [authors [Semashev, Andrey]]
-    [copyright 2022-2023 Andrey Semashev]
+    [copyright 2022-2024 Andrey Semashev]
     [license
         Distributed under the Boost Software License, Version 1.0.
         (See accompanying file LICENSE_1_0.txt or copy at
@@ -100,7 +100,7 @@ public:
     int compute()
     {
         // Reset variables on return
-        BOOST_SCOPE_FINAL [this]
+        BOOST_SCOPE_DEFER [this]
         {
             x = 0;
             y = 0;

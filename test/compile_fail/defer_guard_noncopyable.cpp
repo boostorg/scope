@@ -6,20 +6,20 @@
  * Copyright (c) 2023 Andrey Semashev
  */
 /*!
- * \file   scope_final_noncopyable.cpp
+ * \file   defer_guard_noncopyable.cpp
  * \author Andrey Semashev
  *
- * \brief  This file tests that \c scope_final is noncopyable.
+ * \brief  This file tests that \c defer_guard is noncopyable.
  */
 
-#include <boost/scope/scope_final.hpp>
+#include <boost/scope/defer.hpp>
 #include "function_types.hpp"
 
 int main()
 {
     int n = 0;
-    boost::scope::scope_final< normal_func > guard1{ normal_func(n) };
-    boost::scope::scope_final< normal_func > guard2 = guard1;
+    boost::scope::defer_guard< normal_func > guard1{ normal_func(n) };
+    boost::scope::defer_guard< normal_func > guard2 = guard1;
 
     return 0;
 }

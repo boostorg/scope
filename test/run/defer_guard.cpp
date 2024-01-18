@@ -3,16 +3,16 @@
  * (See accompanying file LICENSE_1_0.txt or copy at
  * https://www.boost.org/LICENSE_1_0.txt)
  *
- * Copyright (c) 2023 Andrey Semashev
+ * Copyright (c) 2023-2024 Andrey Semashev
  */
 /*!
- * \file   scope_final.cpp
+ * \file   defer_guard.cpp
  * \author Andrey Semashev
  *
- * \brief  This file contains tests for \c scope_final.
+ * \brief  This file contains tests for \c defer_guard.
  */
 
-#include <boost/scope/scope_final.hpp>
+#include <boost/scope/defer.hpp>
 #include <boost/core/lightweight_test.hpp>
 #include <boost/core/lightweight_test_trait.hpp>
 #include <boost/config.hpp>
@@ -26,14 +26,14 @@ void check_normal()
 {
     int n = 0;
     {
-        boost::scope::scope_final< normal_func > guard{ normal_func(n) };
+        boost::scope::defer_guard< normal_func > guard{ normal_func(n) };
     }
     BOOST_TEST_EQ(n, 1);
 
     n = 0;
     {
         normal_func func(n);
-        boost::scope::scope_final< normal_func& > guard(func);
+        boost::scope::defer_guard< normal_func& > guard(func);
     }
     BOOST_TEST_EQ(n, 1);
 
@@ -47,7 +47,7 @@ void check_normal()
 
     g_n = 0;
     {
-        boost::scope::scope_final< void (&)() > guard(local::raw_func);
+        boost::scope::defer_guard< void (&)() > guard(local::raw_func);
     }
     BOOST_TEST_EQ(g_n, 1);
 }
@@ -57,7 +57,7 @@ void check_throw()
     int n = 0;
     try
     {
-        boost::scope::scope_final< normal_func > guard{ normal_func(n) };
+        boost::scope::defer_guard< normal_func > guard{ normal_func(n) };
         throw std::runtime_error("error");
     }
     catch (...) {}
@@ -66,7 +66,7 @@ void check_throw()
     n = 0;
     try
     {
-        boost::scope::scope_final< throw_on_copy_func > guard{ throw_on_copy_func(n) };
+        boost::scope::defer_guard< throw_on_copy_func > guard{ throw_on_copy_func(n) };
         BOOST_ERROR("An exception is expected to be thrown by throw_on_copy_func");
     }
     catch (...) {}
@@ -75,7 +75,7 @@ void check_throw()
     n = 0;
     try
     {
-        boost::scope::scope_final< throw_on_move_func > guard{ throw_on_move_func(n) };
+        boost::scope::defer_guard< throw_on_move_func > guard{ throw_on_move_func(n) };
     }
     catch (...)
     {
@@ -87,7 +87,7 @@ void check_throw()
     bool scope_ended = false, exception_thrown = false, func_destroyed = false;
     try
     {
-        boost::scope::scope_final< throw_on_call_func > guard{ throw_on_call_func(n, func_destroyed) };
+        boost::scope::defer_guard< throw_on_call_func > guard{ throw_on_call_func(n, func_destroyed) };
         func_destroyed = false;
         scope_ended = true;
     }
@@ -106,14 +106,14 @@ void check_deduction()
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
     int n = 0;
     {
-        boost::scope::scope_final guard{ normal_func(n) };
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< normal_func >);
+        boost::scope::defer_guard guard{ normal_func(n) };
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::defer_guard< normal_func >);
     }
     BOOST_TEST_EQ(n, 1);
 
     n = 0;
     {
-        boost::scope::scope_final guard([&n] { ++n; });
+        boost::scope::defer_guard guard([&n] { ++n; });
     }
     BOOST_TEST_EQ(n, 1);
 
@@ -134,24 +134,24 @@ void check_deduction()
 
     g_n = 0;
     {
-        boost::scope::scope_final guard{ local::raw_func };
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< void (*)() >);
+        boost::scope::defer_guard guard{ local::raw_func };
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::defer_guard< void (*)() >);
     }
     BOOST_TEST_EQ(g_n, 1);
 
 #if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
     g_n = 0;
     {
-        boost::scope::scope_final guard{ local::raw_func_noexcept };
-        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::scope_final< void (*)() noexcept >);
+        boost::scope::defer_guard guard{ local::raw_func_noexcept };
+        BOOST_TEST_TRAIT_SAME(decltype(guard), boost::scope::defer_guard< void (*)() noexcept >);
     }
     BOOST_TEST_EQ(g_n, 1);
 #endif
 
     n = 0;
     {
-        BOOST_SCOPE_FINAL [&n] { ++n; };
-        BOOST_SCOPE_FINAL [&n] { ++n; };
+        BOOST_SCOPE_DEFER [&n] { ++n; };
+        BOOST_SCOPE_DEFER [&n] { ++n; };
     }
     BOOST_TEST_EQ(n, 2);
 #endif // !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
