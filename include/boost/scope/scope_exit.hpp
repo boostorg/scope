@@ -140,10 +140,9 @@ public:
  * does not call the wrapped action function object.
  *
  * The scope guard can be made inactive by moving-from the scope guard
- * or calling `set_active(false)` or `release()`. An inactive
- * scope guard can be made active by calling `set_active(true)`.
- * If a moved-from scope guard is active on destruction, the behavior
- * is undefined.
+ * or calling `set_active(false)`. An inactive scope guard can be made
+ * active by calling `set_active(true)`. If a moved-from scope guard
+ * is active on destruction, the behavior is undefined.
  *
  * \tparam Func Scope guard action function object type.
  * \tparam Cond Scope guard condition function object type.
@@ -479,20 +478,6 @@ public:
     void set_active(bool active) noexcept
     {
         m_data.m_active = active;
-    }
-
-    /*!
-     * \brief Deactivates the scope guard.
-     *
-     * **Effects:** As if `set_active(false)`.
-     *
-     * **Throws:** Nothing.
-     *
-     * \post `this->active() == false`
-     */
-    void release() noexcept
-    {
-        m_data.m_active = false;
     }
 };
 

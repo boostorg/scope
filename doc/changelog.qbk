@@ -18,6 +18,9 @@ Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/2557
   [@https://lists.boost.org/Archives/boost/2023/12/255501.php suggestion] during the review. The name "defer" is being
   used in other programming languages (Go, Swift and even [@https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2895.htm proposed]
   for inclusion in C) for the functionality similar to `scope_final`.
+* Removed `release` member from the scope guard types. This method was equivalent to `set_active(false)` and existed
+  for compatibility with the C++ Extensions for Library Fundamentals TS. Boost review conclusion indicated that conformance
+  with the TS is not a worthy goal.
 
 [heading 0.1]
 

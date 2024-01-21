@@ -35,15 +35,6 @@ void check_normal()
 
     n = 0;
     {
-        boost::scope::scope_fail< normal_func > guard{ normal_func(n) };
-        BOOST_TEST(guard.active());
-        guard.release();
-        BOOST_TEST(!guard.active());
-    }
-    BOOST_TEST_EQ(n, 0);
-
-    n = 0;
-    {
         boost::scope::scope_fail< moveable_only_func > guard{ moveable_only_func(n) };
         BOOST_TEST(guard.active());
         guard.set_active(false);
