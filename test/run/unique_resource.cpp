@@ -101,6 +101,7 @@ void check_int()
         boost::scope::unique_resource< int, empty_resource_deleter< int > > ur;
         BOOST_TEST_EQ(ur.get(), 0);
         BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
     }
 
     int n = 0;
@@ -108,6 +109,7 @@ void check_int()
         boost::scope::unique_resource< int, checking_resource_deleter< int > > ur{ boost::scope::default_resource, checking_resource_deleter< int >(n) };
         BOOST_TEST_EQ(ur.get(), 0);
         BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
     }
     BOOST_TEST_EQ(n, 0);
 
@@ -115,6 +117,7 @@ void check_int()
         boost::scope::unique_resource< int, empty_resource_deleter< int > > ur{ 10 };
         BOOST_TEST_EQ(ur.get(), 10);
         BOOST_TEST(ur.allocated());
+        BOOST_TEST(!!ur);
     }
 
     int deleted_res1 = -1;
@@ -1206,6 +1209,7 @@ void check_resource_traits()
         boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur{ -10, checking_resource_deleter< int >(deleted_res1, n) };
         BOOST_TEST_EQ(ur.get(), -10);
         BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
     }
     BOOST_TEST_EQ(n, 0);
     BOOST_TEST_EQ(deleted_res1, -1);
@@ -1216,6 +1220,7 @@ void check_resource_traits()
         boost::scope::unique_resource< int, checking_resource_deleter< int >, int_resource_traits > ur{ 0, checking_resource_deleter< int >(deleted_res1, n) };
         BOOST_TEST_EQ(ur.get(), 0);
         BOOST_TEST(ur.allocated());
+        BOOST_TEST(!!ur);
     }
     BOOST_TEST_EQ(n, 1);
     BOOST_TEST_EQ(deleted_res1, 0);

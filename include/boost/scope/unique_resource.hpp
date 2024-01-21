@@ -1297,6 +1297,18 @@ public:
     /*!
      * \brief Returns \c true if the resource is allocated and to be reclaimed by the deleter, otherwise \c false.
      *
+     * \note This method does not test the value of the resource.
+     * 
+     * **Throws:** Nothing.
+     */
+    explicit operator bool () const noexcept
+    {
+        return m_data.is_allocated();
+    }
+
+    /*!
+     * \brief Returns \c true if the resource is allocated and to be reclaimed by the deleter, otherwise \c false.
+     *
      * **Throws:** Nothing.
      */
     bool allocated() const noexcept

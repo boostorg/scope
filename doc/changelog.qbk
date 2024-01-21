@@ -21,6 +21,9 @@ Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/2557
 * Removed `release` member from the scope guard types. This method was equivalent to `set_active(false)` and existed
   for compatibility with the C++ Extensions for Library Fundamentals TS. Boost review conclusion indicated that conformance
   with the TS is not a worthy goal.
+* In `unique_resource`, added `explicit operator bool` as a way to test if the resource in an allocated state, similar
+  to the `allocated` method. This was suggested by Dmitry Arkhipov before the review. Note that the operator does not
+  test the resource value, which is similar to `std::optional`.
 
 [heading 0.1]
 
