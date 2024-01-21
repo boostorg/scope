@@ -1,5 +1,5 @@
 [/
- / Copyright 2023 Andrey Semashev
+ / Copyright 2023-2024 Andrey Semashev
  /
  / Distributed under the Boost Software License, Version 1.0.
  / (See accompanying file LICENSE_1_0.txt or copy at
@@ -278,6 +278,70 @@ will only be called if `open` succeeded.
 
 [tip The `fd_deleter`, `fd_resource_traits` and `unique_fd` types presented in the examples above are provided by the library out of
 the box in [boost_scope_fd_resource_hpp] and [boost_scope_unique_fd_hpp] headers.]
+
+[endsect]
+
+[section:simplified_resource_traits Simplified resource traits]
+
+[note Components described in this section require a C++17 compiler that supports [@https://en.cppreference.com/w/cpp/language/template_parameters
+`auto` non-type template parameters] and [@https://en.cppreference.com/w/cpp/language/fold fold expressions].]
+
+The library provides an `unallocated_resource` class template that can be used to generate resource traits for use with `unique_resource`
+when the resource satisfies the following constraints:
+
+* Resource values are allowed to be specified as [@https://en.cppreference.com/w/cpp/language/template_parameters non-type template parameters]
+  in C++. The exact set of types that meet this requirement depends on the C++ standard version being used. For example, integers, enumerations,
+  pointers and lvalue references are generally supported.
+* There is one or more unallocated resource values that can be individually listed. Every other resource value represents an allocated resource
+  that needs to be freed.
+* One of these unallocated resource values is considered the default.
+* Resource type supports move construction and assignment, as well as comparison for equality and inequality, and none of these operations throw
+  exceptions.
+
+When the above requirements are met, one can specify the unallocated resource values as non-type template parameters of `unallocated_resource` to
+generate resource traits for `unique_resource`. The first of the listed unallocated values is the default.
+
+For example, let's consider resource traits definition for Windows [@https://learn.microsoft.com/en-us/windows/win32/sysinfo/handles-and-objects handles].
+
+    struct handle_traits
+    {
+        //! Returns the default resource value
+        static HANDLE make_default() noexcept
+        {
+            return INVALID_HANDLE_VALUE;
+        }
+
+        //! Tests if \a res is an allocated resource value
+        static bool is_allocated(HANDLE res) noexcept
+        {
+            return res != INVALID_HANDLE_VALUE && res != (HANDLE)NULL;
+        }
+    };
+
+Here, `INVALID_HANDLE_VALUE` is a special constant returned by most Windows API functions that indicates no allocated resource associated with
+the handle. However, some functions, like [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess `OpenProcess`]
+or [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openthread `OpenThread`] for example, return
+a `NULL` handle in case of errors, and we have to test for that value as well. With `unallocated_resource`, the above resource traits could be
+reduced to this:
+
+    using handle_traits = boost::scope::unallocated_resource< INVALID_HANDLE_VALUE, (HANDLE)NULL >;
+
+Given that [@https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle `CloseHandle`] Windows API function is used to
+free handles, the complete definition of `unique_resource` could look like this:
+
+    struct handle_deleter
+    {
+        void operator() (HANDLE h) const noexcept
+        {
+            CloseHandle(h);
+        }
+    };
+
+    using unique_handle = boost::scope::unique_resource<
+        HANDLE,
+        handle_deleter,
+        boost::scope::unallocated_resource< INVALID_HANDLE_VALUE, (HANDLE)NULL >
+    >;
 
 [endsect]
 

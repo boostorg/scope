@@ -3,7 +3,7 @@
  * (See accompanying file LICENSE_1_0.txt or copy at
  * https://www.boost.org/LICENSE_1_0.txt)
  *
- * Copyright (c) 2022 Andrey Semashev
+ * Copyright (c) 2022-2024 Andrey Semashev
  */
 /*!
  * \file scope/unique_resource.hpp
@@ -38,10 +38,47 @@
 namespace boost {
 namespace scope {
 
-struct default_resource_t {};
+#if !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO) && !defined(BOOST_SCOPE_NO_CXX17_FOLD_EXPRESSIONS)
+
+/*!
+ * \brief Simple resource traits for one or more unallocated resource values.
+ *
+ * This class template generates resource traits for `unique_resource` that specify
+ * one or more unallocated resource values. The first value, specified in the \c DefaultValue
+ * non-type template parameter, is considered the default. The other values, listed in
+ * \c UnallocatedValues, are optional. Any resource values other than \c DefaultValue
+ * or listed in \c UnallocatedValues are considered as allocated.
+ *
+ * In order for the generated resource traits to enable optimized implementation of
+ * `unique_resource`, the resource type must support non-throwing construction and assignment
+ * from, and comparison for (in)equality with \c DefaultValue or any of the resource
+ * values listed in \c UnallocatedValues.
+ */
+template< auto DefaultValue, decltype(DefaultValue)... UnallocatedValues >
+struct unallocated_resource
+{
+    //! Resource type
+    typedef decltype(DefaultValue) resource_type;
+
+    //! Returns the default resource value
+    static resource_type make_default() noexcept(std::is_nothrow_move_constructible< resource_type >::value)
+    {
+        return DefaultValue;
+    }
+
+    //! Tests if \a res is an allocated resource value (i.e. not the default)
+    static bool is_allocated(resource_type const& res) noexcept(noexcept(res != DefaultValue))
+    {
+        return res != DefaultValue && (... && (res != UnallocatedValues));
+    }
+};
+
+#endif // !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO) && !defined(BOOST_SCOPE_NO_CXX17_FOLD_EXPRESSIONS)
+
+struct default_resource_t { };
 
 //! Keyword representing default, unallocated resource argument
-BOOST_INLINE_VARIABLE constexpr default_resource_t default_resource = {};
+BOOST_INLINE_VARIABLE constexpr default_resource_t default_resource = { };
 
 namespace detail {
 

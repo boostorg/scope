@@ -3,7 +3,7 @@
  * (See accompanying file LICENSE_1_0.txt or copy at
  * https://www.boost.org/LICENSE_1_0.txt)
  *
- * Copyright (c) 2023 Andrey Semashev
+ * Copyright (c) 2023-2024 Andrey Semashev
  */
 /*!
  * \file   unique_resource.cpp
@@ -1349,6 +1349,101 @@ void check_resource_traits()
     BOOST_TEST_EQ(deleted_res2, 20);
 }
 
+#if !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO) && !defined(BOOST_SCOPE_NO_CXX17_FOLD_EXPRESSIONS)
+
+struct global_deleter_int
+{
+    void operator() (int) noexcept
+    {
+        ++g_n;
+    }
+};
+
+struct global_deleter_ptr
+{
+    void operator() (int*) noexcept
+    {
+        ++g_n;
+    }
+};
+
+void check_simple_resource_traits()
+{
+    g_n = 0;
+    {
+        boost::scope::unique_resource< int, global_deleter_int, boost::scope::unallocated_resource< -1 > > ur;
+        BOOST_TEST_EQ(ur.get(), -1);
+        BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
+    }
+    BOOST_TEST_EQ(g_n, 0);
+
+    g_n = 0;
+    {
+        boost::scope::unique_resource< int, global_deleter_int, boost::scope::unallocated_resource< -1 > > ur{ -1 };
+        BOOST_TEST_EQ(ur.get(), -1);
+        BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
+    }
+    BOOST_TEST_EQ(g_n, 0);
+
+    g_n = 0;
+    {
+        boost::scope::unique_resource< int, global_deleter_int, boost::scope::unallocated_resource< -1 > > ur{ 10 };
+        BOOST_TEST_EQ(ur.get(), 10);
+        BOOST_TEST(ur.allocated());
+        BOOST_TEST(!!ur);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+
+    g_n = 0;
+    {
+        boost::scope::unique_resource< int, global_deleter_int, boost::scope::unallocated_resource< -1, -2, -3 > > ur;
+        BOOST_TEST_EQ(ur.get(), -1);
+        BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
+
+        ur.reset(-2);
+        BOOST_TEST_EQ(g_n, 0);
+        BOOST_TEST_EQ(ur.get(), -2);
+        BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
+
+        ur.reset(-3);
+        BOOST_TEST_EQ(g_n, 0);
+        BOOST_TEST_EQ(ur.get(), -3);
+        BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
+
+        ur.reset(10);
+        BOOST_TEST_EQ(g_n, 0);
+        BOOST_TEST_EQ(ur.get(), 10);
+        BOOST_TEST(ur.allocated());
+        BOOST_TEST(!!ur);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+
+    g_n = 0;
+    {
+        boost::scope::unique_resource< int*, global_deleter_ptr, boost::scope::unallocated_resource< nullptr > > ur;
+        BOOST_TEST_EQ(ur.get(), static_cast< int* >(nullptr));
+        BOOST_TEST(!ur.allocated());
+        BOOST_TEST(!ur);
+    }
+    BOOST_TEST_EQ(g_n, 0);
+
+    g_n = 0;
+    {
+        boost::scope::unique_resource< int*, global_deleter_ptr, boost::scope::unallocated_resource< nullptr > > ur{ &g_n };
+        BOOST_TEST_EQ(ur.get(), &g_n);
+        BOOST_TEST(ur.allocated());
+        BOOST_TEST(!!ur);
+    }
+    BOOST_TEST_EQ(g_n, 1);
+}
+
+#endif // !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO) && !defined(BOOST_SCOPE_NO_CXX17_FOLD_EXPRESSIONS)
+
 int main()
 {
     check_int();
@@ -1360,6 +1455,8 @@ int main()
     check_throw_deleter< wrapped_int_resource_traits >();
     check_deduction();
     check_resource_traits();
-
+#if !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO)
+    check_simple_resource_traits();
+#endif
     return boost::report_errors();
 }
