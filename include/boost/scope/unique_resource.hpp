@@ -38,7 +38,7 @@
 namespace boost {
 namespace scope {
 
-#if !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO) && !defined(BOOST_SCOPE_NO_CXX17_FOLD_EXPRESSIONS)
+#if !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO)
 
 /*!
  * \brief Simple resource traits for one or more unallocated resource values.
@@ -73,7 +73,7 @@ struct unallocated_resource
     }
 };
 
-#endif // !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO) && !defined(BOOST_SCOPE_NO_CXX17_FOLD_EXPRESSIONS)
+#endif // !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO)
 
 struct default_resource_t { };
 
