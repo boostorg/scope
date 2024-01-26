@@ -1349,7 +1349,7 @@ void check_resource_traits()
     BOOST_TEST_EQ(deleted_res2, 20);
 }
 
-#if !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO)
+#if !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_NO_CXX17_AUTO_NONTYPE_TEMPLATE_PARAMS)
 
 struct global_deleter_int
 {
@@ -1442,7 +1442,7 @@ void check_simple_resource_traits()
     BOOST_TEST_EQ(g_n, 1);
 }
 
-#endif // !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO)
+#endif // !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_NO_CXX17_AUTO_NONTYPE_TEMPLATE_PARAMS)
 
 int main()
 {
@@ -1455,7 +1455,7 @@ int main()
     check_throw_deleter< wrapped_int_resource_traits >();
     check_deduction();
     check_resource_traits();
-#if !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_SCOPE_NO_CXX17_NONTYPE_TEMPLATE_PARAMETER_AUTO)
+#if !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_NO_CXX17_AUTO_NONTYPE_TEMPLATE_PARAMS)
     check_simple_resource_traits();
 #endif
     return boost::report_errors();
