@@ -201,7 +201,7 @@ we can use the `allocated` member function to test it instead of checking the re
 
 [note In order to avoid confusion with the [class_scope_unique_resource] object being always allocated after construction with a resource
 value, it is recommended to always use either the `make_unique_resource_checked` factory function or resource traits, as described in
-the next section.]
+the next section. Resource traits are the preferred solution as it makes [class_scope_unique_resource] more efficient and less error-prone.]
 
 [section:resource_traits Resource traits]
 
