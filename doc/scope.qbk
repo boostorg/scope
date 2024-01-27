@@ -16,6 +16,7 @@
 [/ Links to external resources /]
 [def __boost_config__ [@https://www.boost.org/doc/libs/release/libs/config/doc/html/index.html Boost.Config]]
 [def __boost_core__ [@https://www.boost.org/doc/libs/release/libs/core/doc/html/index.html Boost.Core]]
+[def __boost_core_functor__ [@https://www.boost.org/doc/libs/release/libs/core/doc/html/core/functor.html `functor`]]
 [def __boost_function__ [@https://www.boost.org/doc/libs/release/doc/html/function.html Boost.Function]]
 [def __boost_outcome__ [@https://www.boost.org/doc/libs/release/libs/outcome/doc/html/index.html Boost.Outcome]]
 [def __boost_scope_exit__ [@https://www.boost.org/doc/libs/release/libs/scope_exit/doc/html/index.html Boost.ScopeExit]]
@@ -31,10 +32,10 @@
 [section:intro Introduction]
 
 The Boost.Scope library is a collection of utilities helping with code execution upon leaving a scope and automatic resource management. The library contains
-components that were specified in the [@https://cplusplus.github.io/fundamentals-ts/v3.html C++ Extensions for Library Fundamentals, Version 3] technical specification,
-in the [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`] standard library header, originally defined in
-[@https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0052r10.pdf P0052R10]. The library also contains extensions to the Fundamentals TS that improve
-usability or efficiency of the components.
+components that are similar to those specified in the [@https://cplusplus.github.io/fundamentals-ts/v3.html C++ Extensions for Library Fundamentals, Version 3]
+technical specification (or TS, for short), in the [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`] standard library header,
+originally defined in [@https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p0052r10.pdf P0052R10]. The library also contains extensions to the TS that
+improve usability or efficiency of the components.
 
 The components provided by the library can be divided into two categories:
 

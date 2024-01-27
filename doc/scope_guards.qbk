@@ -1028,4 +1028,160 @@ if initializing the scope guard fails with an exception.
 
 [endsect]
 
+[section:comparison_with_library_fundamentals_ts Comparison with scope guards defined in C++ Extensions for Library Fundamentals]
+
+The [@https://cplusplus.github.io/fundamentals-ts/v3.html#scopeguard.exit C++ Extensions for Library Fundamentals TS] defines three scope
+guard types, `scope_exit`, `scope_success` and `scope_fail`, which have similar semantics to the same-named scope guards provided by this
+library. There are some differences and extensions that are summarised below.
+
+[section:condition_functions Condition functions]
+
+All three of the [class_scope_scope_exit], [class_scope_scope_success] and [class_scope_scope_fail] scope guards provided by Boost.Scope
+support an optional [link scope.scope_guards.condition_functions condition function] that is used to decide whether the scope guard should
+invoke its wrapped action function. The scope guards defined by the TS do not have this feature, the behavior of each of the three scope
+guards is predefined by the specification.
+
+The default condition functions used in the Boost.Scope scope guards make the behavior equivalent to the TS, so if the user doesn't use
+custom condition functions, the scope guard usage is equivalent between the two. If custom condition functions are used, those can be
+emulated in TS scope guards by embedding the condition function into the action called by `std::experimental::scope_exit`. For example,
+if the user's code uses error codes as the failure indication with [class_scope_scope_fail], the equivalent TS code could look like this:
+
+[table Using custom condition functions
+[[Boost.Scope][Library Fundamentals TS]]
+[[
+```
+std::error_code ec;
+boost::scope::scope_fail guard
+{
+    [] { handle_error(); },
+    boost::scope::check_error_code(ec)
+};
+```
+]
+[
+```
+std::error_code ec;
+std::experimental::scope_exit guard
+{
+    [&ec]
+    {
+        if (ec)
+            handle_error();
+    }
+};
+```
+]]
+]
+
+Note that we had to switch from `scope_fail` to `scope_exit` in case of TS.
+
+[endsect]
+
+[section:activation Flexible activation and deactivation of scope guards]
+
+Scope guards defined in the TS are always constructed active and can only be deactivated by calling `release()` method. Boost.Scope
+supports creating initially inactive scope guards, as well as activating and deactivating them after creation. This allows for more
+flexible placement of the scope guards in the user's code, which is useful if the decision on whether to execute the scope guard action
+needs to be made after the scope guard is constructed.
+
+This feature can be emulated in TS using additional state that the scope guard action checks to see if the action needs to be performed.
+
+[table Explicitly activating scope guards
+[[Boost.Scope][Library Fundamentals TS]]
+[[
+```
+// Insert value into both containers and call on_inserted() afterwards.
+// Maintain both containers intact if an exception is thrown.
+void insert_two(std::vector<int>* pv, std::set<int>& set, int value)
+{
+    // Initially inactive scope guard
+    boost::scope::scope_fail pv_rollback([pv] { pv->pop_back(); }, false);
+    if (pv)
+    {
+        pv->push_back(value); // may throw
+        pv_rollback.set_active(true); // activate the scope guard
+    }
+
+    auto [it, inserted] = set.insert(value); // may throw
+    // Initially active scope guard, if a new element was inserted, otherwise inactive
+    boost::scope::scope_fail set_rollback([&set, &it] { set.erase(it); }, inserted);
+
+    on_inserted(); // may throw
+}
+```
+]
+[
+```
+// Insert value into both containers and call on_inserted() afterwards.
+// Maintain both containers intact if an exception is thrown.
+void insert_two(std::vector<int>* pv, std::set<int>& set, int value)
+{
+    bool pv_inserted = false;
+    // Initially active scope guard, but blocked by pv_inserted == false
+    std::experimental::scope_fail pv_rollback([pv, &pv_inserted]
+    {
+        if (pv_inserted)
+            pv->pop_back();
+    });
+    if (pv)
+    {
+        pv->push_back(value); // may throw
+        pv_inserted = true; // unblock the scope guard
+    }
+
+    auto [it, inserted] = set.insert(value); // may throw
+    // Initially active scope guard, which we immediately deactivate if no element was inserted
+    std::experimental::scope_fail set_rollback([&set, &it] { set.erase(it); });
+    if (!inserted)
+        set_rollback.release();
+
+    on_inserted(); // may throw
+}
+```
+]]
+]
+
+Note that Boost.Scope guards don't provide `release()` member function and instead provide `set_active()` with a `bool` argument,
+where `release()` is equivalent to `set_active(false)`. This allows for both activating and deactivating the scope guard. The `bool`
+argument is especially convenient compared to two distinct methods for activating and deactivating the scope guard when the decision
+on whether the scope guard needs to be active is made at run time.
+
+[note At least one person during the Boost.Scope review [@https://lists.boost.org/Archives/boost/2023/11/255424.php noted] that
+`release()` is a poor name in the context of scope guards. This, and the fact that a method with a `bool` argument is more flexible
+and provides the same functionality, is why Boost.Scope does not provide `release()`.]
+
+In addition to `set_active()`, Boost.Scope scope guards can be queried whether they are active via the `active()` method. This feature
+has no equivalent in the TS.
+
+[endsect]
+
+[section:looser_dtor_noexcept Looser `noexcept` specification on destructors]
+
+In the Library Fundamentals TS, only `scope_success` action is allowed to throw exceptions, while `scope_fail` and `scope_exit`
+destructors are unconditionally marked `noexcept`. Since the TS does not support custom condition functions, `scope_fail` can only
+invoke its action while an exception is unwinding the stack, so throwing an exception from the scope guard action would cause the
+program to terminate. In case of `scope_exit` the justification is less definitive, as this scope guard may invoke its action when
+no exception is in flight. However, the situation when the action is called due to an exception is still possible, and the TS takes
+a conservative approach by prohibiting the action to throw exceptions.
+
+Boost.Scope takes a different approach. Since all three scope guards support custom condition functions, each of them may invoke
+its action whether or not an exception is propagating through the stack. The notion of "failure" is no longer equivalent to "exception",
+so even for a [class_scope_scope_fail] scope guard with a custom failure condition it may make sense to allow throwing exceptions.
+Therefore, for all scope guards provided by Boost.Scope, their destructors are `noexcept` only if their action and condition
+functions are both marked `noexcept`. It is user's responsibity to ensure that the scope guard actions and conditions do not
+throw exceptions when another exception is in flight. The user may even perform a runtime check with `std::uncaught_exceptions`, if
+needed. If the user is willing to enforce the non-throwing guarantee for his scope guards, he is able to do this by marking his action
+functions `noexcept`:
+
+    boost::scope::scope_exit guard([&]() noexcept { /* I promise I won't throw */ });
+
+While this allows more scope guards to throw exceptions, it makes no difference in behavior when the action throws during an exception
+propagation. Whether the scope guard's destructor is marked `noexcept` or not, the program will terminate either way in this case.
+
+This Boost.Scope feature cannot be emulated with TS scope guards.
+
+[endsect]
+
+[endsect]
+
 [endsect]

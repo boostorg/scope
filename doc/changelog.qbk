@@ -27,6 +27,9 @@ Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/2557
 * Added [link scope.unique_resource.simplified_resource_traits `unallocated_resource`] class template for simplifying
   declaration of resource traits for `unique_resource`. The idea of a more compact `unique_resource` declaration was
   presented by Janko Dedic in his [@https://lists.boost.org/Archives/boost/2023/11/255424.php review].
+* Added documentation sections describing differences between Boost.Scope and Library Fundamentals TS (see
+  [link scope.scope_guards.comparison_with_library_fundamentals_ts here] and
+  [link scope.unique_resource.comparison_with_library_fundamentals_ts here]).
 
 [heading 0.1]
 
