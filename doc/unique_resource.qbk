@@ -326,20 +326,13 @@ reduced to this:
 
     using handle_traits = boost::scope::unallocated_resource< INVALID_HANDLE_VALUE, (HANDLE)NULL >;
 
-Given that [@https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle `CloseHandle`] Windows API function is used to
-free handles, the complete definition of `unique_resource` could look like this:
-
-    struct handle_deleter
-    {
-        void operator() (HANDLE h) const noexcept
-        {
-            CloseHandle(h);
-        }
-    };
+We can also use __boost_core_functor__ to wrap the [@https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
+`CloseHandle`] Windows API function, which is used to free handles, to define the resource deleter. Then the complete definition of
+`unique_resource` would look like this:
 
     using unique_handle = boost::scope::unique_resource<
         HANDLE,
-        handle_deleter,
+        boost::core::functor< CloseHandle >,
         boost::scope::unallocated_resource< INVALID_HANDLE_VALUE, (HANDLE)NULL >
     >;
 
