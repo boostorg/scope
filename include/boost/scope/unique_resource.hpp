@@ -508,14 +508,14 @@ private:
 };
 
 /*
- * This metafunction indicates whether the \c resource_holder should use \c compact_storage
+ * This metafunction indicates whether \c resource_holder should use \c compact_storage
  * to optimize storage for the resource object. Its definition must be coherent with
  * `resource_storage::move_from` definition and move constructor implementation in
  * \c unique_resource_data.
  *
- * There is one tricky case of \c unique_resource move constructor, when the resource move
+ * There is one tricky case with \c unique_resource move constructor, when the resource move
  * constructor is noexcept and deleter's move and copy constructors are not. It is possible
- * that \c unique_resource_data move constructor moves the resource to the object being
+ * that \c unique_resource_data move constructor moves the resource into the object being
  * constructed but fails to construct the deleter. In this case we want to move the resource
  * back to the original \c unique_resource_data object (which is guaranteed to not throw since
  * the resource's move constructor is non-throwing).
@@ -535,7 +535,8 @@ private:
  *
  * So this trait has to detect (a) whether we are affected by this tricky case of the
  * \c unique_resource move constructor in the first place and (b) whether we can use move
- * assignment to move the resource back to the original \c unique_resource object.
+ * assignment to move the resource back to the original \c unique_resource object. If we're
+ * not affected or we can use move assignment then we enable \c compact_storage.
  */
 template< typename Resource, typename Deleter >
 using use_resource_compact_storage = detail::disjunction<
