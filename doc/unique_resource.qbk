@@ -463,15 +463,18 @@ This is consistent with other components, such as `std::optional`, for example.]
 Library Fundamentals TS defines `unique_resource` to be a move-constructible and move-assignable type, and through this property it supports the
 standard `std::swap` algorithm. However, there are two issues with this approach:
 
-* It prevents swapping implementation specialized for the resource and deleter types from being used. Even if `swap` is specialized, the generic
+* It prevents swapping algorithms specialized for the resource and deleter types from being used. Even if `swap` is specialized, the generic
   algorithm involving moving or copying the resource and deleter objects is used.
-* The TS defines `unique_resource` move constructor to be potentially destructive. If the resource type move constructor is non-throwing and the
-  deleter copy-constructor throws, the deleter is called on the move-constructed resource object to avoid leaking it. With `std::swap`, this means
-  that a failed swap may end up deallocating one of the resources.
+* The generic `swap` implementation only provides [@https://en.cppreference.com/w/cpp/language/exceptions#Exception_safety basic exception guarantee].
+  The algorithm move-constructs a copy of one of the source objects and then performs two move-assignments. If either of the assignments fail, one
+  of the `unique_resource` objects will be left unallocated. It is also worth noting that the TS defines `unique_resource` move constructor to be
+  potentially destructive. If the resource type move constructor is non-throwing and the deleter copy-constructor throws, the deleter is called on
+  the move-constructed resource object to avoid leaking it. In the context of `std::swap` this means that even if the move constructor fails, it will
+  leave the source object unallocated rather than unmodified.
 
 Boost.Scope provides native support for swapping, both as a member and non-member function `swap`. Swapping is supported if at least one of the
-resource or deleter types support non-throwing swap (either default or specialized algorithm). `unique_resource` swap operation is non-throwing
-if both resource and deleter types support non-throwing swap.
+resource or deleter types support non-throwing swap (either default or specialized algorithm) and provides strong exception guarantee.
+`unique_resource` swap operation is non-throwing if both resource and deleter types support non-throwing swap.
 
     boost::scope::unique_resource< int, boost::scope::fd_deleter, boost::scope::fd_resource_traits > fd1, fd2;
     fd1.swap(fd2);
