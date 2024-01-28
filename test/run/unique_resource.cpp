@@ -910,6 +910,69 @@ struct wrapped_int_resource_traits
     }
 };
 
+// Specially-crafted resource type that is:
+// * nothrow move-constructible
+// * NOT-nothrow move-assignable
+// * has data layout which favors placing the "allocated" flag in unique_resource in its tail padding
+class move_constructible_resource
+{
+private:
+    int m_n1;
+    signed char m_n2;
+
+public:
+    constexpr move_constructible_resource() noexcept : m_n1(0), m_n2(0) { }
+    explicit move_constructible_resource(int n1, signed char n2 = 0) noexcept : m_n1(n1), m_n2(n2) { }
+
+    move_constructible_resource(move_constructible_resource&& that) noexcept : m_n1(that.m_n1), m_n2(that.m_n2)
+    {
+        that.m_n1 = 0;
+        that.m_n2 = 0;
+    }
+
+    move_constructible_resource(move_constructible_resource const& that) : m_n1(that.m_n1), m_n2(that.m_n2)
+    {
+    }
+
+    move_constructible_resource& operator= (move_constructible_resource&& that) // not noexcept
+    {
+        m_n1 = that.m_n1;
+        m_n2 = that.m_n2;
+        that.m_n1 = 0;
+        that.m_n2 = 0;
+        return *this;
+    }
+
+    move_constructible_resource& operator= (move_constructible_resource const& that)
+    {
+        m_n1 = that.m_n1;
+        m_n2 = that.m_n2;
+        return *this;
+    }
+
+    bool operator== (move_constructible_resource const& that) const noexcept
+    {
+        return m_n1 == that.m_n1 && m_n2 == that.m_n2;
+    }
+
+    bool operator!= (move_constructible_resource const& that) const noexcept
+    {
+        return !operator==(that);
+    }
+
+    friend std::ostream& operator<< (std::ostream& strm, move_constructible_resource const& res)
+    {
+        strm << "{ " << res.m_n1 << ", " << static_cast< int >(res.m_n2) << " }";
+        return strm;
+    }
+
+    friend void copy_resource(move_constructible_resource const& from, move_constructible_resource& to)
+    {
+        to.m_n1 = from.m_n1;
+        to.m_n2 = from.m_n2;
+    }
+};
+
 template< template< typename > class Traits >
 void check_throw_deleter()
 {
@@ -1030,9 +1093,10 @@ void check_throw_deleter()
             }
             catch (...)
             {
-                // The resource was moved from ur1, but the deleter could not have been moved and was called on the moved resource
-                BOOST_TEST_EQ(n, 1);
-                BOOST_TEST_EQ(deleted_res1, moveable_resource{ 10 });
+                // The resource was moved from ur1, but the deleter could not have been moved. Then the resource was moved back to ur1.
+                BOOST_TEST_EQ(n, 0);
+                BOOST_TEST(ur1.allocated());
+                BOOST_TEST_EQ(ur1.get(), moveable_resource{ 10 });
                 throw;
             }
         }
@@ -1040,6 +1104,7 @@ void check_throw_deleter()
         {
         }
         BOOST_TEST_EQ(n, 1);
+        BOOST_TEST_EQ(deleted_res1, moveable_resource{ 10 });
     }
 
     n = 0;
@@ -1071,6 +1136,65 @@ void check_throw_deleter()
         BOOST_TEST_EQ(n, 2);
         BOOST_TEST_EQ(deleted_res1, moveable_resource{ 10 });
         BOOST_TEST_EQ(deleted_res2, moveable_resource{ 20 });
+    }
+
+    n = 0;
+    {
+        move_constructible_resource deleted_res1;
+        try
+        {
+            typedef boost::scope::unique_resource< move_constructible_resource, throwing_resource_deleter< move_constructible_resource >, Traits< move_constructible_resource > > unique_resource_t;
+            unique_resource_t ur1{ move_constructible_resource(10, 5), throwing_resource_deleter< move_constructible_resource >(deleted_res1, n) };
+            ur1.get_deleter().set_throw(true);
+            try
+            {
+                unique_resource_t ur2 = std::move(ur1);
+                BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
+            }
+            catch (...)
+            {
+                // The resource was moved from ur1, but the deleter could not have been moved. Then the resource was moved back to ur1.
+                BOOST_TEST_EQ(n, 0);
+                BOOST_TEST(ur1.allocated());
+                BOOST_TEST_EQ(ur1.get(), move_constructible_resource(10, 5));
+                throw;
+            }
+        }
+        catch (...)
+        {
+        }
+        BOOST_TEST_EQ(n, 1);
+        BOOST_TEST_EQ(deleted_res1, move_constructible_resource(10, 5));
+    }
+
+    n = 0;
+    {
+        move_constructible_resource deleted_res1;
+        try
+        {
+            // No resource traits to force using the "allocated" flag
+            typedef boost::scope::unique_resource< move_constructible_resource, throwing_resource_deleter< move_constructible_resource > > unique_resource_t;
+            unique_resource_t ur1{ move_constructible_resource(10, 0), throwing_resource_deleter< move_constructible_resource >(deleted_res1, n) };
+            ur1.get_deleter().set_throw(true);
+            try
+            {
+                unique_resource_t ur2 = std::move(ur1);
+                BOOST_ERROR("An exception is expected to be thrown by throwing_resource_deleter");
+            }
+            catch (...)
+            {
+                // The resource was moved from ur1, but the deleter could not have been moved. Then the resource was moved back to ur1.
+                BOOST_TEST_EQ(n, 0);
+                BOOST_TEST(ur1.allocated());
+                BOOST_TEST_EQ(ur1.get(), move_constructible_resource(10, 0));
+                throw;
+            }
+        }
+        catch (...)
+        {
+        }
+        BOOST_TEST_EQ(n, 1);
+        BOOST_TEST_EQ(deleted_res1, move_constructible_resource(10, 0));
     }
 }
 

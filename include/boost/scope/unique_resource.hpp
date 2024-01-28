@@ -14,6 +14,7 @@
 #ifndef BOOST_SCOPE_UNIQUE_RESOURCE_HPP_INCLUDED_
 #define BOOST_SCOPE_UNIQUE_RESOURCE_HPP_INCLUDED_
 
+#include <new> // for placement new
 #include <type_traits>
 #include <boost/core/addressof.hpp>
 #include <boost/core/invoke_swap.hpp>
@@ -82,6 +83,7 @@ BOOST_INLINE_VARIABLE constexpr default_resource_t default_resource = { };
 
 namespace detail {
 
+// The type trait indicates whether \c T is a possibly qualified \c default_resource_t type
 template< typename T >
 struct is_default_resource : public std::false_type { };
 template< >
@@ -95,6 +97,7 @@ struct is_default_resource< const volatile default_resource_t > : public std::tr
 template< typename T >
 struct is_default_resource< T& > : public is_default_resource< T >::type { };
 
+// Lightweight reference wrapper
 template< typename T >
 class ref_wrapper
 {
@@ -155,6 +158,7 @@ struct has_custom_default_impl
     typedef decltype(has_custom_default_impl::_has_custom_default_check< Traits >(0)) type;
 };
 
+// The type trait indicates whether the resource traits define a `make_default` static method
 template< typename Resource, typename Traits >
 struct has_custom_default : public has_custom_default_impl< Resource, Traits >::type { };
 
@@ -169,18 +173,110 @@ struct has_deallocated_state_impl
     typedef decltype(has_deallocated_state_impl::_has_deallocated_state_check< Traits, Resource >(0)) type;
 };
 
+// The type trait indicates whether the resource traits define an `is_allocated` static method
 template< typename Resource, typename Traits >
 struct has_deallocated_state : public has_deallocated_state_impl< Resource, Traits >::type { };
 
-template< typename Resource, typename Traits, bool = has_custom_default< Resource, Traits >::value >
-class resource_holder :
+template< typename Resource, bool UseCompactStorage >
+class resource_storage
+{
+public:
+    typedef Resource resource_type;
+    typedef typename wrap_reference< Resource >::type internal_resource_type;
+
+private:
+    // Note: Not using compact_storage since we will need to reuse storage for this complete object in move_from
+    internal_resource_type m_resource;
+
+public:
+    template<
+        bool Requires = std::is_default_constructible< internal_resource_type >::value,
+        typename = typename std::enable_if< Requires >::type
+    >
+    constexpr resource_storage() noexcept(std::is_nothrow_default_constructible< internal_resource_type >::value) :
+        m_resource()
+    {
+    }
+
+    template<
+        typename R,
+        typename = typename std::enable_if< std::is_constructible< internal_resource_type, R >::value >::type
+    >
+    explicit resource_storage(R&& res) noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
+        m_resource(static_cast< R&& >(res))
+    {
+    }
+
+    internal_resource_type& get() noexcept
+    {
+        return m_resource;
+    }
+
+    internal_resource_type const& get() const noexcept
+    {
+        return m_resource;
+    }
+
+    void move_from(internal_resource_type&& that)
+        noexcept(std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::value)
+    {
+        internal_resource_type* p = boost::addressof(m_resource);
+        p->~internal_resource_type();
+        new (p) internal_resource_type(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that));
+    }
+};
+
+template< typename Resource >
+class resource_storage< Resource, true > :
     public detail::compact_storage< typename wrap_reference< Resource >::type >
 {
 public:
     typedef Resource resource_type;
     typedef typename wrap_reference< Resource >::type internal_resource_type;
-    typedef Traits traits_type;
+
+private:
     typedef detail::compact_storage< internal_resource_type > resource_base;
+
+public:
+    template<
+        bool Requires = std::is_default_constructible< internal_resource_type >::value,
+        typename = typename std::enable_if< Requires >::type
+    >
+    constexpr resource_storage() noexcept(std::is_nothrow_default_constructible< internal_resource_type >::value) :
+        resource_base()
+    {
+    }
+
+    template<
+        typename R,
+        typename = typename std::enable_if< std::is_constructible< internal_resource_type, R >::value >::type
+    >
+    explicit resource_storage(R&& res) noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
+        resource_base(static_cast< R&& >(res))
+    {
+    }
+
+    using resource_base::get;
+
+    void move_from(internal_resource_type&& that) noexcept(std::is_nothrow_move_assignable< internal_resource_type >::value)
+    {
+        resource_base::get() = static_cast< internal_resource_type&& >(that);
+    }
+};
+
+template< typename Resource, typename Traits, bool UseCompactStorage, bool = has_custom_default< Resource, Traits >::value >
+class resource_holder :
+    public detail::resource_storage< Resource, UseCompactStorage >
+{
+public:
+    typedef Resource resource_type;
+
+private:
+    typedef detail::resource_storage< resource_type, UseCompactStorage > resource_base;
+
+public:
+    typedef typename resource_base::internal_resource_type internal_resource_type;
+    typedef Traits traits_type;
 
 public:
     template<
@@ -250,15 +346,19 @@ private:
     }
 };
 
-template< typename Resource, typename Traits >
-class resource_holder< Resource, Traits, true > :
-    public detail::compact_storage< typename wrap_reference< Resource >::type >
+template< typename Resource, typename Traits, bool UseCompactStorage >
+class resource_holder< Resource, Traits, UseCompactStorage, true > :
+    public detail::resource_storage< Resource, UseCompactStorage >
 {
 public:
     typedef Resource resource_type;
-    typedef typename wrap_reference< Resource >::type internal_resource_type;
+
+private:
+    typedef detail::resource_storage< resource_type, UseCompactStorage > resource_base;
+
+public:
+    typedef typename resource_base::internal_resource_type internal_resource_type;
     typedef Traits traits_type;
-    typedef detail::compact_storage< internal_resource_type > resource_base;
 
 public:
     constexpr resource_holder()
@@ -336,6 +436,8 @@ public:
     typedef Resource resource_type;
     typedef Deleter deleter_type;
     typedef typename wrap_reference< deleter_type >::type internal_deleter_type;
+
+private:
     typedef detail::compact_storage< internal_deleter_type > deleter_base;
 
 public:
@@ -405,6 +507,44 @@ private:
     }
 };
 
+/*
+ * This metafunction indicates whether the \c resource_holder should use \c compact_storage
+ * to optimize storage for the resource object. Its definition must be coherent with
+ * `resource_storage::move_from` definition and move constructor implementation in
+ * \c unique_resource_data.
+ *
+ * There is one tricky case of \c unique_resource move constructor, when the resource move
+ * constructor is noexcept and deleter's move and copy constructors are not. It is possible
+ * that \c unique_resource_data move constructor moves the resource to the object being
+ * constructed but fails to construct the deleter. In this case we want to move the resource
+ * back to the original \c unique_resource_data object (which is guaranteed to not throw since
+ * the resource's move constructor is non-throwing).
+ *
+ * However, if we use the move constructor to move the resource back, we need to use placement
+ * new, and this only lets us create a complete object of the resource type, which prohibits
+ * the use of \c compact_storage, as it may create the resource object as a base subobject of
+ * \c compact_storage. Using placement new on a base subobject may corrupt data that is placed
+ * in the trailing padding bits of the resource type.
+ *
+ * To work around this limitation, we also test if move assignment of the resource type is
+ * also non-throwing (which is reasonable to expect, given that the move constructor is
+ * non-throwing). If it is, we can avoid having to destroy and move-construct the resource and
+ * use move-assignment instead. This doesn't require a complete object of the resource type
+ * and allows us to use \c compact_storage. If move assignment is not noexcept then we have
+ * to use the move constructor and disable the \c compact_storage optimization.
+ *
+ * So this trait has to detect (a) whether we are affected by this tricky case of the
+ * \c unique_resource move constructor in the first place and (b) whether we can use move
+ * assignment to move the resource back to the original \c unique_resource object.
+ */
+template< typename Resource, typename Deleter >
+using use_resource_compact_storage = detail::disjunction<
+    std::is_nothrow_move_assignable< typename wrap_reference< Resource >::type >,
+    std::is_nothrow_constructible< typename wrap_reference< Deleter >::type, typename detail::move_or_copy_construct_ref< Deleter >::type >,
+    detail::negation< std::is_nothrow_constructible< typename wrap_reference< Resource >::type, typename detail::move_or_copy_construct_ref< Resource >::type > >
+>;
+
+// The type trait indicates whether we can use optimized implementation of \c unique_resource without an extra "allocated" flag
 template< typename Resource, typename Traits, bool = detail::conjunction< has_deallocated_state< Resource, Traits >, has_custom_default< Resource, Traits > >::value >
 struct use_deallocated_state : public std::false_type { };
 
@@ -419,14 +559,14 @@ struct use_deallocated_state< Resource, Traits, true > :
 
 template< typename Resource, typename Deleter, typename Traits, bool = use_deallocated_state< Resource, Traits >::value >
 class unique_resource_data :
-    public detail::resource_holder< Resource, Traits >,
+    public detail::resource_holder< Resource, Traits, use_resource_compact_storage< Resource, Deleter >::value >,
     public detail::deleter_holder< Resource, Deleter >
 {
 public:
     typedef Resource resource_type;
     typedef Deleter deleter_type;
     typedef Traits traits_type;
-    typedef detail::resource_holder< resource_type, traits_type > resource_holder;
+    typedef detail::resource_holder< resource_type, traits_type, use_resource_compact_storage< resource_type, deleter_type >::value > resource_holder;
     typedef typename resource_holder::internal_resource_type internal_resource_type;
     typedef detail::deleter_holder< resource_type, deleter_type > deleter_holder;
     typedef typename deleter_holder::internal_deleter_type internal_deleter_type;
@@ -465,6 +605,7 @@ public:
         unique_resource_data
         (
             static_cast< unique_resource_data&& >(that),
+            typename std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::type(),
             typename std::is_nothrow_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >::type()
         )
     {
@@ -606,31 +747,42 @@ public:
     }
 
 private:
-    unique_resource_data(unique_resource_data&& that, std::true_type)
-        noexcept(std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::value) :
+    unique_resource_data(unique_resource_data&& that, std::true_type, std::true_type) noexcept :
         resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
-        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()), resource_holder::get(), false),
+        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter())),
         m_allocated(that.m_allocated)
     {
         that.m_allocated = false;
     }
 
-    unique_resource_data(unique_resource_data&& that, std::false_type) try :
+    unique_resource_data(unique_resource_data&& that, std::false_type, std::true_type) :
+        resource_holder(static_cast< resource_type const& >(that.get_resource())),
+        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter())),
+        m_allocated(that.m_allocated)
+    {
+        that.m_allocated = false;
+    }
+
+    unique_resource_data(unique_resource_data&& that, std::true_type, std::false_type) try :
         resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
-        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()), resource_holder::get(),
-            std::is_nothrow_constructible< internal_resource_type, resource_type&& >::value && that.m_allocated), // don't deallocate if the resource was copy-constructed
+        deleter_holder(static_cast< deleter_type const& >(that.get_deleter())),
         m_allocated(that.m_allocated)
     {
         that.m_allocated = false;
     }
     catch (...)
     {
-        BOOST_IF_CONSTEXPR (std::is_nothrow_constructible< internal_resource_type, resource_type&& >::value)
-        {
-            // The resource was moved to this object, and the deleter constructor failed with an exception.
-            // The deleter holder has invoked the deleter already, so the move source is no longer valid.
-            that.m_allocated = false;
-        }
+        // Since only the deleter's constructor could have thrown an exception here, move the resource back
+        // to the original unique_resource. This is guaranteed to not throw.
+        that.resource_holder::move_from(static_cast< internal_resource_type&& >(get_internal_resource()));
+    }
+
+    unique_resource_data(unique_resource_data&& that, std::false_type, std::false_type) :
+        resource_holder(static_cast< resource_type const& >(that.get_resource())),
+        deleter_holder(static_cast< deleter_type const& >(that.get_deleter())),
+        m_allocated(that.m_allocated)
+    {
+        that.m_allocated = false;
     }
 
     void assign(unique_resource_data&& that, std::true_type)
@@ -676,14 +828,14 @@ private:
 
 template< typename Resource, typename Deleter, typename Traits >
 class unique_resource_data< Resource, Deleter, Traits, true > :
-    public detail::resource_holder< Resource, Traits >,
+    public detail::resource_holder< Resource, Traits, use_resource_compact_storage< Resource, Deleter >::value >,
     public detail::deleter_holder< Resource, Deleter >
 {
 public:
     typedef Resource resource_type;
     typedef Deleter deleter_type;
     typedef Traits traits_type;
-    typedef detail::resource_holder< resource_type, traits_type > resource_holder;
+    typedef detail::resource_holder< resource_type, traits_type, use_resource_compact_storage< resource_type, deleter_type >::value > resource_holder;
     typedef typename resource_holder::internal_resource_type internal_resource_type;
     typedef detail::deleter_holder< resource_type, deleter_type > deleter_holder;
     typedef typename deleter_holder::internal_deleter_type internal_deleter_type;
@@ -711,6 +863,7 @@ public:
         unique_resource_data
         (
             static_cast< unique_resource_data&& >(that),
+            typename std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::type(),
             typename std::is_nothrow_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >::type()
         )
     {
@@ -848,29 +1001,38 @@ public:
     }
 
 private:
-    unique_resource_data(unique_resource_data&& that, std::true_type)
-        noexcept(std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::value) :
+    unique_resource_data(unique_resource_data&& that, std::true_type, std::true_type) noexcept :
         resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
-        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()), resource_holder::get(), false)
+        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()))
     {
         that.set_deallocated();
     }
 
-    unique_resource_data(unique_resource_data&& that, std::false_type) try :
+    unique_resource_data(unique_resource_data&& that, std::false_type, std::true_type) :
+        resource_holder(static_cast< resource_type const& >(that.get_resource())),
+        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()))
+    {
+        that.set_deallocated();
+    }
+
+    unique_resource_data(unique_resource_data&& that, std::true_type, std::false_type) try :
         resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
-        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()), resource_holder::get(),
-            std::is_nothrow_constructible< internal_resource_type, resource_type&& >::value && is_allocated()) // don't deallocate if the resource was copy-constructed
+        deleter_holder(static_cast< deleter_type const& >(that.get_deleter()))
     {
         that.set_deallocated();
     }
     catch (...)
     {
-        BOOST_IF_CONSTEXPR (std::is_nothrow_constructible< internal_resource_type, resource_type&& >::value)
-        {
-            // The resource was moved to this object, and the deleter constructor failed with an exception.
-            // The deleter holder has invoked the deleter already, so the move source is no longer valid.
-            that.set_deallocated();
-        }
+        // Since only the deleter's constructor could have thrown an exception here, move the resource back
+        // to the original unique_resource. This is guaranteed to not throw.
+        that.resource_holder::move_from(static_cast< internal_resource_type&& >(get_internal_resource()));
+    }
+
+    unique_resource_data(unique_resource_data&& that, std::false_type, std::false_type) :
+        resource_holder(static_cast< resource_type const& >(that.get_resource())),
+        deleter_holder(static_cast< deleter_type const& >(that.get_deleter()))
+    {
+        that.set_deallocated();
     }
 
     template<
@@ -1227,12 +1389,10 @@ public:
      *              otherwise copy-constructs. If \c Deleter is nothrow move-constructible then move-constructs
      *              \c Deleter, otherwise copy-constructs. Deactivates the moved-from unique resource object.
      *
-     *              If `that.allocated()` was \c true prior to the operation and constructing \c Deleter
-     *              throws after \c Resource is move-constructed, invokes the original deleter stored in \a that
-     *              on the resource and deactivates \a that before returning with the exception. In other
-     *              exceptional cases \a that is left intact.
+     *              If an exception is thrown during construction, \a that is left in its original state.
      *
-     * \note This logic ensures that the resource is not leaked in case of an exception.
+     * \note This logic ensures that in case of exception the resource is not leaked and remains owned by the
+     *       move source.
      *
      * **Throws:** Nothing, unless construction of \c Resource or \c Deleter throws.
      *
@@ -1261,10 +1421,10 @@ public:
      *              the \c Deleter object first and the \c Resource object next. Otherwise, move-assigns
      *              the objects in reverse order. Lastly, deactivates the moved-from unique resource object.
      *
-     *              If an exception is thrown, \a that is left intact.
+     *              If an exception is thrown, \a that is left in its original state.
      *
-     * \note The different orders of assignment ensure that in case of an exception the resource is not leaked
-     *       and ramains owned by the move source.
+     * \note The different orders of assignment ensure that in case of exception the resource is not leaked
+     *       and remains owned by the move source.
      *
      * **Throws:** Nothing, unless assignment of \c Resource or \c Deleter throws.
      *
@@ -1461,7 +1621,7 @@ public:
      * **Requires:** \c Resource and \c Deleter are swappable. At least one of \c Resource and \c Deleter
      *               is nothrow swappable.
      *
-     * **Effects:** Swaps the resource objects and deleter objects stored in `*this` and `that`
+     * **Effects:** Swaps the resource objects and deleter objects stored in `*this` and \a that
      *              as if by calling unqualified `swap` in a context where `std::swap` is
      *              found by overload resolution.
      *

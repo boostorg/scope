@@ -30,6 +30,9 @@ Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/2557
 * Added documentation sections describing differences between Boost.Scope and Library Fundamentals TS (see
   [link scope.scope_guards.comparison_with_library_fundamentals_ts here] and
   [link scope.unique_resource.comparison_with_library_fundamentals_ts here]).
+* [link scope.unique_resource `unique_resource`] move constructor was modified to preserve the original state of the
+  source argument in case of exception. This deviates from the TS behavior, which specifies to invoke the deleter on
+  the move-constructed resource, but it means the move constructor now maintains strong exception guarantee.
 
 [heading 0.1]
 

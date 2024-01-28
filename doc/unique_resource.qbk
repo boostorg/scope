@@ -402,7 +402,7 @@ the limitation in some cases, as shown above.
 
 [section:constructors Constructor differences]
 
-Unlike Library fundamentals TS, Boost.Scope does not consider pointers to functions default-constructible for the purpose of deleters specified
+Unlike Library Fundamentals TS, Boost.Scope does not consider pointers to functions default-constructible for the purpose of deleters specified
 in `unique_resource` template parameters. For example:
 
     std::experimental::unique_resource< int, int (*)(int) > fd1; // compiles, creates unusable unique_resource object
@@ -437,6 +437,14 @@ call the deleter on destruction. `default_resource` also works with resource tra
 
 In the above case, the `fd` object will use the default value specified by the resource traits (i.e. -1, in case of fd_resource_traits) to initialize
 its stored resource object. Again, the `fd` object is in an unallocated state after construction.
+
+Library Fundamentals TS specifies that `unique_resource` move constructor must deallocate the resource if the resource is nothrow move-constructible
+and the deleter is not and the deleter's copy constructor throws and exception. This is a case when `unique_resource` is half-constructed: the
+resource has been moved into the object being constructed (i.e. is no longer stored in the source object) but the deleter fails to copy-construct
+(i.e. it only exists in the source object). The behavior described in the TS ensures that the resource doesn't leak, but it leaves the source
+`unique_resource` unallocated in case of exception, which means the move constructor only maintains
+[@https://en.cppreference.com/w/cpp/language/exceptions#Exception_safety basic exception guarantee]. Boost.Scope in this case leaves the source
+`unique_resource` in its original state, which also guarantees that the resource doesn't leak, but provides a strong exception guarantee.
 
 [endsect]
 
