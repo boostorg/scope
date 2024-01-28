@@ -1402,7 +1402,7 @@ public:
     {
         reset_impl
         (
-            static_cast< typename detail::move_or_copy_assign_ref< R, resource_type >::type >(res),
+            static_cast< R&& >(res),
             typename detail::conjunction<
                 detail::is_nothrow_invocable< deleter_type&, resource_type& >,
                 std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< R, resource_type >::type >
@@ -1508,7 +1508,7 @@ private:
     void reset_impl(R&& res, std::true_type) noexcept
     {
         reset();
-        m_data.assign_resource(static_cast< R&& >(res));
+        m_data.assign_resource(static_cast< typename detail::move_or_copy_assign_ref< R, resource_type >::type >(res));
     }
 
     //! Assigns a new resource object to the unique resource wrapper.
@@ -1518,7 +1518,7 @@ private:
         try
         {
             reset();
-            m_data.assign_resource(static_cast< R&& >(res));
+            m_data.assign_resource(static_cast< typename detail::move_or_copy_assign_ref< R, resource_type >::type >(res));
         }
         catch (...)
         {
