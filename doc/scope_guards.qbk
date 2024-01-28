@@ -227,43 +227,6 @@ Scope guards described in this section are move-constructible (but not assignabl
 move- or copy-constructible as well. After moving, the moved-from scope guard becomes inactive. If a moved-from scope guard is active
 on destruction, the behavior is undefined.
 
-When using scope guards, users should make sure that all variables captured by reference are still in a valid state upon the scope guard
-destruction. This especially pertains to lambda functions that capture variables by reference by default (i.e. where the capture clause
-starts with `&`). Consider the following example:
-
-    std::unique_ptr< int > bad(std::unique_ptr< int > ptr)
-    {
-        assert(ptr != nullptr);
-
-        boost::scope::scope_exit guard{[&]
-        {
-            std::cout << "processed: " << *ptr << std::endl;
-        }};
-
-        process(*ptr);
-
-        return ptr; // moves from ptr, leaving it null for the scope guard action
-    }
-
-In cases like this consider capturing by value in the function object or moving the scope guard to a deeper scope, so that it executes
-its action before the variables captured by reference become invalid.
-
-    std::unique_ptr< int > good(std::unique_ptr< int > ptr)
-    {
-        assert(ptr != nullptr);
-
-        {
-            boost::scope::scope_exit guard{[&]
-            {
-                std::cout << "processed: " << *ptr << std::endl;
-            }};
-
-            process(*ptr);
-        } // <- scope guard action runs here, before ptr is moved-from
-
-        return ptr;
-    }
-
 [endsect]
 
 [section:condition_functions Scope guard condition functions]
@@ -557,6 +520,61 @@ directly.
     {
         std::cout << "Hello world!" << std::endl;
     }};
+
+[endsect]
+
+[section:capture_by_reference_caveats Caveats of capturing by reference]
+
+When using scope guards, users should make sure that all variables captured by reference are still in a valid state upon the scope guard
+destruction. This especially pertains to lambda functions that capture variables by reference by default (i.e. where the capture clause
+starts with `&`). Consider the following example:
+
+    void bad(std::unique_ptr< int > ptr)
+    {
+        assert(ptr != nullptr);
+
+        boost::scope::scope_exit guard{[&]
+        {
+            std::cout << "processed: " << *ptr << std::endl;
+        }};
+
+        process(std::move(ptr)); // may consume ptr, leaving it null for the scope guard action
+    }
+
+Or a slightly less obvious version of it, involving implicit move of the returned value:
+
+    std::unique_ptr< int > bad(std::unique_ptr< int > ptr)
+    {
+        assert(ptr != nullptr);
+
+        boost::scope::scope_exit guard{[&]
+        {
+            std::cout << "processed: " << *ptr << std::endl;
+        }};
+
+        process(*ptr);
+
+        return ptr; // moves from ptr, leaving it null for the scope guard action
+    }
+
+In cases like this consider capturing by value in the function object or moving the scope guard to a deeper scope, so that it executes
+its action before the variables captured by reference become invalid.
+
+    std::unique_ptr< int > good(std::unique_ptr< int > ptr)
+    {
+        assert(ptr != nullptr);
+
+        {
+            boost::scope::scope_exit guard{[&]
+            {
+                std::cout << "processed: " << *ptr << std::endl;
+            }};
+
+            process(*ptr);
+        } // <- scope guard action runs here, before ptr is moved-from
+
+        return ptr;
+    }
 
 [endsect]
 
