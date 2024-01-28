@@ -661,33 +661,15 @@ private:
 
     void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
     {
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
         boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-        try
-        {
-            boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-        }
-        catch (...)
-        {
-            boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-            throw;
-        }
-
         boost::core::invoke_swap(m_allocated, that.m_allocated);
     }
 
     void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
     {
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
         boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-        try
-        {
-            boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-        }
-        catch (...)
-        {
-            boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-            throw;
-        }
-
         boost::core::invoke_swap(m_allocated, that.m_allocated);
     }
 };
@@ -934,30 +916,14 @@ private:
 
     void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
     {
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
         boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-        try
-        {
-            boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-        }
-        catch (...)
-        {
-            boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-            throw;
-        }
     }
 
     void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
     {
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
         boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-        try
-        {
-            boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-        }
-        catch (...)
-        {
-            boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-            throw;
-        }
     }
 };
 
@@ -1498,6 +1464,9 @@ public:
      * **Effects:** Swaps the resource objects and deleter objects stored in `*this` and `that`
      *              as if by calling unqualified `swap` in a context where `std::swap` is
      *              found by overload resolution.
+     *
+     *              If an exception is thrown, and the failed swap operation supports strong exception
+     *              guarantee, both `*this` and \a that are left in their original states.
      *
      * **Throws:** Nothing, unless swapping the resource objects or deleters throw.
      *
