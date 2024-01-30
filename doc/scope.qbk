@@ -227,8 +227,8 @@ public:
 ]]
 [[
 ```
-// Writes a list of strings to the file, one per line
-bool save_to_file(std::vector< std::string > const& strings,
+// Writes a list of strings to the file, in CSV format
+bool save_as_csv(std::vector< std::string > const& strings,
     std::string const& filename)
 {
     std::ofstream file(filename.c_str(),
@@ -249,14 +249,21 @@ bool save_to_file(std::vector< std::string > const& strings,
     }
     BOOST_SCOPE_EXIT_END;
 
+    bool first = true;
     for (auto const& str : strings)
     {
-        file << str << std::endl;
+        if (!first)
+            file << ',';
+        else
+            first = false;
+
+        file << '"' << str << '"';
+
         if (file.fail())
             return false;
     }
 
-    file.flush();
+    file << std::endl;
 
     // Commit the operation if the stream is not in a failed state
     fail = file.fail();
@@ -267,8 +274,8 @@ bool save_to_file(std::vector< std::string > const& strings,
 ]
 [
 ```
-// Writes a list of strings to the file, one per line
-bool save_to_file(std::vector< std::string > const& strings,
+// Writes a list of strings to the file, in CSV format
+bool save_as_csv(std::vector< std::string > const& strings,
     std::string const& filename)
 {
     std::ofstream file(filename.c_str(),
@@ -284,14 +291,21 @@ bool save_to_file(std::vector< std::string > const& strings,
         std::remove(filename.c_str());
     });
 
+    bool first = true;
     for (auto const& str : strings)
     {
-        file << str << std::endl;
+        if (!first)
+            file << ',';
+        else
+            first = false;
+
+        file << '"' << str << '"';
+
         if (file.fail())
             return false;
     }
 
-    file.flush();
+    file << std::endl;
     if (file.fail())
         return false;
 
@@ -304,8 +318,8 @@ bool save_to_file(std::vector< std::string > const& strings,
 ]
 [
 ```
-// Writes a list of strings to the file, one per line
-bool save_to_file(std::vector< std::string > const& strings,
+// Writes a list of strings to the file, in CSV format
+bool save_as_csv(std::vector< std::string > const& strings,
     std::string const& filename)
 {
     std::ofstream file(filename.c_str(),
@@ -321,14 +335,21 @@ bool save_to_file(std::vector< std::string > const& strings,
         std::remove(filename.c_str());
     }};
 
+    bool first = true;
     for (auto const& str : strings)
     {
-        file << str << std::endl;
+        if (!first)
+            file << ',';
+        else
+            first = false;
+
+        file << '"' << str << '"';
+
         if (file.fail())
             return false;
     }
 
-    file.flush();
+    file << std::endl;
     if (file.fail())
         return false;
 
