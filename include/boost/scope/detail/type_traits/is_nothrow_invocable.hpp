@@ -45,13 +45,13 @@ namespace detail {
 template< bool, typename Func, typename... Args >
 struct is_nothrow_invocable_impl
 {
-    typedef std::false_type type;
+    using type = std::false_type;
 };
 
 template< typename Func, typename... Args >
 struct is_nothrow_invocable_impl< true, Func, Args... >
 {
-    typedef std::integral_constant< bool, noexcept(std::declval< Func >()(std::declval< Args >()...)) > type;
+    using type = std::integral_constant< bool, noexcept(std::declval< Func >()(std::declval< Args >()...)) >;
 };
 
 template< typename Func, typename... Args >

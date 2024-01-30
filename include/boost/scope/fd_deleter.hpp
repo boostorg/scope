@@ -38,7 +38,7 @@ namespace scope {
 //! POSIX-like file descriptor deleter
 struct fd_deleter
 {
-    typedef void result_type;
+    using result_type = void;
 
     //! Closes the file descriptor
     result_type operator() (int fd) const noexcept

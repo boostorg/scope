@@ -48,7 +48,7 @@ struct is_invocable_impl
     static std::true_type _check_invocable(int);
     static std::false_type _check_invocable(...);
 
-    typedef decltype(is_invocable_impl::_check_invocable(0)) type;
+    using type = decltype(is_invocable_impl::_check_invocable(0));
 };
 
 template< typename Func, typename... Args >

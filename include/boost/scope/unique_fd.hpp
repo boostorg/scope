@@ -28,7 +28,7 @@ namespace boost {
 namespace scope {
 
 //! Unique POSIX-like file descriptor resource
-typedef unique_resource< int, fd_deleter, fd_resource_traits > unique_fd;
+using unique_fd = unique_resource< int, fd_deleter, fd_resource_traits >;
 
 } // namespace scope
 } // namespace boost

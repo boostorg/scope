@@ -852,7 +852,7 @@ class throwing_resource_deleter :
     public checking_resource_deleter< Resource >
 {
 private:
-    typedef checking_resource_deleter< Resource > base_type;
+    using base_type = checking_resource_deleter< Resource >;
 
 private:
     mutable bool m_throw;
@@ -980,7 +980,7 @@ void check_throw_deleter()
     {
         try
         {
-            typedef boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > > unique_resource_t;
+            using unique_resource_t = boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > >;
             unique_resource_t ur1{ boost::scope::default_resource, throwing_resource_deleter< copyable_resource >(n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1005,7 +1005,7 @@ void check_throw_deleter()
         copyable_resource deleted_res1;
         try
         {
-            typedef boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > > unique_resource_t;
+            using unique_resource_t = boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > >;
             unique_resource_t ur1{ copyable_resource{ 10 }, throwing_resource_deleter< copyable_resource >(deleted_res1, n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1031,7 +1031,7 @@ void check_throw_deleter()
         copyable_resource deleted_res1, deleted_res2;
         try
         {
-            typedef boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > > unique_resource_t;
+            using unique_resource_t = boost::scope::unique_resource< copyable_resource, throwing_resource_deleter< copyable_resource >, Traits< copyable_resource > >;
             unique_resource_t ur1{ copyable_resource{ 10 }, throwing_resource_deleter< copyable_resource >(deleted_res1, n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1058,7 +1058,7 @@ void check_throw_deleter()
     {
         try
         {
-            typedef boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > > unique_resource_t;
+            using unique_resource_t = boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > >;
             unique_resource_t ur1{ boost::scope::default_resource, throwing_resource_deleter< moveable_resource >(n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1083,7 +1083,7 @@ void check_throw_deleter()
         moveable_resource deleted_res1;
         try
         {
-            typedef boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > > unique_resource_t;
+            using unique_resource_t = boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > >;
             unique_resource_t ur1{ moveable_resource{ 10 }, throwing_resource_deleter< moveable_resource >(deleted_res1, n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1112,7 +1112,7 @@ void check_throw_deleter()
         moveable_resource deleted_res1, deleted_res2;
         try
         {
-            typedef boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > > unique_resource_t;
+            using unique_resource_t = boost::scope::unique_resource< moveable_resource, throwing_resource_deleter< moveable_resource >, Traits< moveable_resource > >;
             unique_resource_t ur1{ moveable_resource{ 10 }, throwing_resource_deleter< moveable_resource >(deleted_res1, n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1143,7 +1143,7 @@ void check_throw_deleter()
         move_constructible_resource deleted_res1;
         try
         {
-            typedef boost::scope::unique_resource< move_constructible_resource, throwing_resource_deleter< move_constructible_resource >, Traits< move_constructible_resource > > unique_resource_t;
+            using unique_resource_t = boost::scope::unique_resource< move_constructible_resource, throwing_resource_deleter< move_constructible_resource >, Traits< move_constructible_resource > >;
             unique_resource_t ur1{ move_constructible_resource(10, 5), throwing_resource_deleter< move_constructible_resource >(deleted_res1, n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1173,7 +1173,7 @@ void check_throw_deleter()
         try
         {
             // No resource traits to force using the "allocated" flag
-            typedef boost::scope::unique_resource< move_constructible_resource, throwing_resource_deleter< move_constructible_resource > > unique_resource_t;
+            using unique_resource_t = boost::scope::unique_resource< move_constructible_resource, throwing_resource_deleter< move_constructible_resource > >;
             unique_resource_t ur1{ move_constructible_resource(10, 0), throwing_resource_deleter< move_constructible_resource >(deleted_res1, n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1218,29 +1218,29 @@ void check_deduction()
 
 #if !defined(BOOST_NO_CXX17_DEDUCTION_GUIDES)
     {
-        typedef boost::scope::unique_resource< int, empty_resource_deleter< int > > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< int, empty_resource_deleter< int > >;
         boost::scope::unique_resource ur{ 0, empty_resource_deleter< int >() };
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
     }
     {
-        typedef boost::scope::unique_resource< struct_resource, empty_resource_deleter< struct_resource > > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< struct_resource, empty_resource_deleter< struct_resource > >;
         boost::scope::unique_resource ur{ struct_resource(), empty_resource_deleter< struct_resource >() };
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
     }
     {
-        typedef boost::scope::unique_resource< int, void(*)(int) > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< int, void(*)(int) >;
         boost::scope::unique_resource ur{ 0, local::raw_func_deleter };
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
     }
 #if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
     {
-        typedef boost::scope::unique_resource< int, void(*)(int) noexcept > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< int, void(*)(int) noexcept >;
         boost::scope::unique_resource ur{ 0, local::raw_func_deleter_noexcept };
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
     }
 #endif
     {
-        typedef boost::scope::unique_resource< int, empty_resource_deleter< int > > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< int, empty_resource_deleter< int > >;
         boost::scope::unique_resource ur1{ 0, empty_resource_deleter< int >() };
         BOOST_TEST_TRAIT_SAME(decltype(ur1), expected_unique_resource_t);
         boost::scope::unique_resource ur2 = std::move(ur1);
@@ -1250,7 +1250,7 @@ void check_deduction()
 
     int n = 0, deleted_res = -1;
     {
-        typedef boost::scope::unique_resource< int, checking_resource_deleter< int > > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< int, checking_resource_deleter< int > >;
         auto ur = boost::scope::make_unique_resource_checked(10, 0, checking_resource_deleter< int >(deleted_res, n));
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
         BOOST_TEST_EQ(ur.get(), 10);
@@ -1262,7 +1262,7 @@ void check_deduction()
     n = 0;
     deleted_res = -1;
     {
-        typedef boost::scope::unique_resource< int, checking_resource_deleter< int > > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< int, checking_resource_deleter< int > >;
         auto ur = boost::scope::make_unique_resource_checked(0, 0, checking_resource_deleter< int >(deleted_res, n));
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
         BOOST_TEST_EQ(ur.get(), 0);
@@ -1272,13 +1272,13 @@ void check_deduction()
     BOOST_TEST_EQ(deleted_res, -1);
 
     {
-        typedef boost::scope::unique_resource< int, void(*)(int) > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< int, void(*)(int) >;
         auto ur = boost::scope::make_unique_resource_checked(0, 0, local::raw_func_deleter);
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
     }
 #if !defined(BOOST_SCOPE_NO_CXX17_NOEXCEPT_FUNCTION_TYPES)
     {
-        typedef boost::scope::unique_resource< int, void(*)(int) noexcept > expected_unique_resource_t;
+        using expected_unique_resource_t = boost::scope::unique_resource< int, void(*)(int) noexcept >;
         auto ur = boost::scope::make_unique_resource_checked(0, 0, local::raw_func_deleter_noexcept);
         BOOST_TEST_TRAIT_SAME(decltype(ur), expected_unique_resource_t);
     }

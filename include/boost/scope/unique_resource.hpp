@@ -59,7 +59,7 @@ template< auto DefaultValue, decltype(DefaultValue)... UnallocatedValues >
 struct unallocated_resource
 {
     //! Resource type
-    typedef decltype(DefaultValue) resource_type;
+    using resource_type = decltype(DefaultValue);
 
     //! Returns the default resource value
     static resource_type make_default() noexcept(std::is_nothrow_move_constructible< resource_type >::value)
@@ -138,13 +138,13 @@ public:
 template< typename T >
 struct wrap_reference
 {
-    typedef T type;
+    using type = T;
 };
 
 template< typename T >
 struct wrap_reference< T& >
 {
-    typedef ref_wrapper< T > type;
+    using type = ref_wrapper< T >;
 };
 
 template< typename Resource, typename Traits >
@@ -155,7 +155,7 @@ struct has_custom_default_impl
     template< typename Tr >
     static std::false_type _has_custom_default_check(...);
 
-    typedef decltype(has_custom_default_impl::_has_custom_default_check< Traits >(0)) type;
+    using type = decltype(has_custom_default_impl::_has_custom_default_check< Traits >(0));
 };
 
 // The type trait indicates whether the resource traits define a `make_default` static method
@@ -170,7 +170,7 @@ struct has_deallocated_state_impl
     template< typename Tr, typename Res >
     static std::false_type _has_deallocated_state_check(...);
 
-    typedef decltype(has_deallocated_state_impl::_has_deallocated_state_check< Traits, Resource >(0)) type;
+    using type = decltype(has_deallocated_state_impl::_has_deallocated_state_check< Traits, Resource >(0));
 };
 
 // The type trait indicates whether the resource traits define an `is_allocated` static method
@@ -181,8 +181,8 @@ template< typename Resource, bool UseCompactStorage >
 class resource_storage
 {
 public:
-    typedef Resource resource_type;
-    typedef typename wrap_reference< Resource >::type internal_resource_type;
+    using resource_type = Resource;
+    using internal_resource_type = typename wrap_reference< Resource >::type;
 
 private:
     // Note: Not using compact_storage since we will need to reuse storage for this complete object in move_from
@@ -231,11 +231,11 @@ class resource_storage< Resource, true > :
     public detail::compact_storage< typename wrap_reference< Resource >::type >
 {
 public:
-    typedef Resource resource_type;
-    typedef typename wrap_reference< Resource >::type internal_resource_type;
+    using resource_type = Resource;
+    using internal_resource_type = typename wrap_reference< Resource >::type;
 
 private:
-    typedef detail::compact_storage< internal_resource_type > resource_base;
+    using resource_base = detail::compact_storage< internal_resource_type >;
 
 public:
     template<
@@ -269,14 +269,14 @@ class resource_holder :
     public detail::resource_storage< Resource, UseCompactStorage >
 {
 public:
-    typedef Resource resource_type;
+    using resource_type = Resource;
 
 private:
-    typedef detail::resource_storage< resource_type, UseCompactStorage > resource_base;
+    using resource_base = detail::resource_storage< resource_type, UseCompactStorage >;
 
 public:
-    typedef typename resource_base::internal_resource_type internal_resource_type;
-    typedef Traits traits_type;
+    using internal_resource_type = typename resource_base::internal_resource_type;
+    using traits_type = Traits;
 
 public:
     template<
@@ -351,14 +351,14 @@ class resource_holder< Resource, Traits, UseCompactStorage, true > :
     public detail::resource_storage< Resource, UseCompactStorage >
 {
 public:
-    typedef Resource resource_type;
+    using resource_type = Resource;
 
 private:
-    typedef detail::resource_storage< resource_type, UseCompactStorage > resource_base;
+    using resource_base = detail::resource_storage< resource_type, UseCompactStorage >;
 
 public:
-    typedef typename resource_base::internal_resource_type internal_resource_type;
-    typedef Traits traits_type;
+    using internal_resource_type = typename resource_base::internal_resource_type;
+    using traits_type = Traits;
 
 public:
     constexpr resource_holder()
@@ -433,12 +433,12 @@ class deleter_holder :
     public detail::compact_storage< typename wrap_reference< Deleter >::type >
 {
 public:
-    typedef Resource resource_type;
-    typedef Deleter deleter_type;
-    typedef typename wrap_reference< deleter_type >::type internal_deleter_type;
+    using resource_type = Resource;
+    using deleter_type = Deleter;
+    using internal_deleter_type = typename wrap_reference< deleter_type >::type;
 
 private:
-    typedef detail::compact_storage< internal_deleter_type > deleter_base;
+    using deleter_base = detail::compact_storage< internal_deleter_type >;
 
 public:
     template<
@@ -564,13 +564,13 @@ class unique_resource_data :
     public detail::deleter_holder< Resource, Deleter >
 {
 public:
-    typedef Resource resource_type;
-    typedef Deleter deleter_type;
-    typedef Traits traits_type;
-    typedef detail::resource_holder< resource_type, traits_type, use_resource_compact_storage< resource_type, deleter_type >::value > resource_holder;
-    typedef typename resource_holder::internal_resource_type internal_resource_type;
-    typedef detail::deleter_holder< resource_type, deleter_type > deleter_holder;
-    typedef typename deleter_holder::internal_deleter_type internal_deleter_type;
+    using resource_type = Resource;
+    using deleter_type = Deleter;
+    using traits_type = Traits;
+    using resource_holder = detail::resource_holder< resource_type, traits_type, use_resource_compact_storage< resource_type, deleter_type >::value >;
+    using internal_resource_type = typename resource_holder::internal_resource_type;
+    using deleter_holder = detail::deleter_holder< resource_type, deleter_type >;
+    using internal_deleter_type = typename deleter_holder::internal_deleter_type;
 
 private:
     bool m_allocated;
@@ -833,13 +833,13 @@ class unique_resource_data< Resource, Deleter, Traits, true > :
     public detail::deleter_holder< Resource, Deleter >
 {
 public:
-    typedef Resource resource_type;
-    typedef Deleter deleter_type;
-    typedef Traits traits_type;
-    typedef detail::resource_holder< resource_type, traits_type, use_resource_compact_storage< resource_type, deleter_type >::value > resource_holder;
-    typedef typename resource_holder::internal_resource_type internal_resource_type;
-    typedef detail::deleter_holder< resource_type, deleter_type > deleter_holder;
-    typedef typename deleter_holder::internal_deleter_type internal_deleter_type;
+    using resource_type = Resource;
+    using deleter_type = Deleter;
+    using traits_type = Traits;
+    using resource_holder = detail::resource_holder< resource_type, traits_type, use_resource_compact_storage< resource_type, deleter_type >::value >;
+    using internal_resource_type = typename resource_holder::internal_resource_type;
+    using deleter_holder = detail::deleter_holder< resource_type, deleter_type >;
+    using internal_deleter_type = typename deleter_holder::internal_deleter_type;
 
 public:
     template<
@@ -1098,7 +1098,7 @@ struct is_dereferenceable_impl
     template< typename U >
     static std::false_type _is_dereferenceable_check(...);
 
-    typedef decltype(is_dereferenceable_impl::_is_dereferenceable_check< T >(0)) type;
+    using type = decltype(is_dereferenceable_impl::_is_dereferenceable_check< T >(0));
 };
 
 template< typename T >
@@ -1149,7 +1149,7 @@ struct dereference_traits { };
 template< typename T >
 struct dereference_traits< T, true >
 {
-    typedef decltype(*std::declval< T const& >()) result_type;
+    using result_type = decltype(*std::declval< T const& >());
     static constexpr bool is_noexcept = noexcept(*std::declval< T const& >());
 };
 
@@ -1212,17 +1212,17 @@ class unique_resource
 {
 public:
     //! Resource type
-    typedef Resource resource_type;
+    using resource_type = Resource;
     //! Deleter type
-    typedef Deleter deleter_type;
+    using deleter_type = Deleter;
     //! Resource traits
-    typedef Traits traits_type;
+    using traits_type = Traits;
 
 //! \cond
 private:
-    typedef detail::unique_resource_data< resource_type, deleter_type, traits_type > data;
-    typedef typename data::internal_resource_type internal_resource_type;
-    typedef typename data::internal_deleter_type internal_deleter_type;
+    using data = detail::unique_resource_data< resource_type, deleter_type, traits_type >;
+    using internal_resource_type = typename data::internal_resource_type;
+    using internal_deleter_type = typename data::internal_deleter_type;
 
     data m_data;
 
@@ -1724,11 +1724,11 @@ make_unique_resource_checked(Resource&& res, Invalid const& invalid, Deleter&& d
         >::value
     ))
 {
-    typedef unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type > unique_resource_t;
+    using unique_resource_type = unique_resource< typename std::decay< Resource >::type, typename std::decay< Deleter >::type >;
     if (!(res == invalid))
-        return unique_resource_t(static_cast< Resource&& >(res), static_cast< Deleter&& >(del));
+        return unique_resource_type(static_cast< Resource&& >(res), static_cast< Deleter&& >(del));
     else
-        return unique_resource_t(default_resource_t(), static_cast< Deleter&& >(del));
+        return unique_resource_type(default_resource_t(), static_cast< Deleter&& >(del));
 }
 
 } // namespace scope

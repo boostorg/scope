@@ -52,7 +52,7 @@ class error_code_checker
 {
 public:
     //! Predicate result type
-    typedef bool result_type;
+    using result_type = bool;
 
 private:
     ErrorCode* m_error_code;

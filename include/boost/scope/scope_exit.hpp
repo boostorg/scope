@@ -99,7 +99,7 @@ class always_true
 {
 public:
     //! Predicate result type
-    typedef bool result_type;
+    using result_type = bool;
 
     /*!
      * **Throws:** Nothing.
@@ -155,7 +155,7 @@ private:
     struct func_holder :
         public detail::compact_storage< Func >
     {
-        typedef detail::compact_storage< Func > func_base;
+        using func_base = detail::compact_storage< Func >;
 
         template<
             typename F,
@@ -189,7 +189,7 @@ private:
     struct cond_holder :
         public detail::compact_storage< Cond >
     {
-        typedef detail::compact_storage< Cond > cond_base;
+        using cond_base = detail::compact_storage< Cond >;
 
         template<
             typename C,

@@ -48,7 +48,7 @@ class exception_checker
 {
 public:
     //! Predicate result type
-    typedef bool result_type;
+    using result_type = bool;
 
 private:
     unsigned int m_uncaught_count;

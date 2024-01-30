@@ -74,7 +74,7 @@ class scope_fail :
 {
 //! \cond
 private:
-    typedef scope_exit< Func, Cond > base_type;
+    using base_type = scope_exit< Func, Cond >;
 
 //! \endcond
 public:

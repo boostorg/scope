@@ -30,17 +30,17 @@ namespace detail {
 template< typename From, typename To = From >
 struct move_or_copy_assign_ref
 {
-    typedef typename std::conditional<
+    using type = typename std::conditional<
         std::is_nothrow_assignable< To, From >::value,
         From&&,
         From const&
-    >::type type;
+    >::type;
 };
 
 template< typename From, typename To >
 struct move_or_copy_assign_ref< From&, To >
 {
-    typedef From& type;
+    using type = From&;
 };
 
 } // namespace detail

@@ -50,7 +50,7 @@ template< typename Func >
 class logical_not
 {
 public:
-    typedef bool result_type;
+    using result_type = bool;
 
 private:
     Func m_func;
@@ -118,7 +118,7 @@ class scope_success :
 {
 //! \cond
 private:
-    typedef scope_exit< Func, detail::logical_not< Cond > > base_type;
+    using base_type = scope_exit< Func, detail::logical_not< Cond > >;
 
 //! \endcond
 public:
