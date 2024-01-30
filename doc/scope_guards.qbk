@@ -279,8 +279,8 @@ construction. For example, the following four pieces of code have the same effec
 [[`scope_fail`][`scope_exit` with a condition][`scope_exit` with embedded condition][`scope_exit` with manual deactivation]]
 [[
 ```
-void push_back(int x, std::vector<int>& vec1,
-    std::vector<int>& vec2)
+void push_back(int x, std::vector< int >& vec1,
+    std::vector< int >& vec2)
 {
     vec1.push_back(x);
 
@@ -296,8 +296,8 @@ void push_back(int x, std::vector<int>& vec1,
 ]
 [
 ```
-void push_back(int x, std::vector<int>& vec1,
-    std::vector<int>& vec2)
+void push_back(int x, std::vector< int >& vec1,
+    std::vector< int >& vec2)
 {
     vec1.push_back(x);
 
@@ -314,8 +314,8 @@ void push_back(int x, std::vector<int>& vec1,
 ]
 [
 ```
-void push_back(int x, std::vector<int>& vec1,
-    std::vector<int>& vec2)
+void push_back(int x, std::vector< int >& vec1,
+    std::vector< int >& vec2)
 {
     vec1.push_back(x);
 
@@ -335,8 +335,8 @@ void push_back(int x, std::vector<int>& vec1,
 ]
 [
 ```
-void push_back(int x, std::vector<int>& vec1,
-    std::vector<int>& vec2)
+void push_back(int x, std::vector< int >& vec1,
+    std::vector< int >& vec2)
 {
     vec1.push_back(x);
 
@@ -1214,7 +1214,7 @@ This feature can be emulated in TS using additional state that the scope guard a
 ```
 // Insert value into both containers and call on_inserted() afterwards.
 // Maintain both containers intact if an exception is thrown.
-void insert_two(std::vector<int>* pv, std::set<int>& set, int value)
+void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 {
     // Initially inactive scope guard
     boost::scope::scope_fail pv_rollback([pv] { pv->pop_back(); }, false);
@@ -1236,7 +1236,7 @@ void insert_two(std::vector<int>* pv, std::set<int>& set, int value)
 ```
 // Insert value into both containers and call on_inserted() afterwards.
 // Maintain both containers intact if an exception is thrown.
-void insert_two(std::vector<int>* pv, std::set<int>& set, int value)
+void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 {
     bool pv_inserted = false;
     // Initially active scope guard, but blocked by pv_inserted == false
