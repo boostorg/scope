@@ -163,19 +163,19 @@ template< typename Resource, typename Traits >
 struct has_custom_default : public has_custom_default_impl< Resource, Traits >::type { };
 
 template< typename Resource, typename Traits >
-struct has_deallocated_state_impl
+struct has_unallocated_state_impl
 {
     template< typename Tr, typename Res, typename R = decltype(!!Tr::is_allocated(std::declval< Res const& >())) >
-    static std::true_type _has_deallocated_state_check(int);
+    static std::true_type _has_unallocated_state_check(int);
     template< typename Tr, typename Res >
-    static std::false_type _has_deallocated_state_check(...);
+    static std::false_type _has_unallocated_state_check(...);
 
-    using type = decltype(has_deallocated_state_impl::_has_deallocated_state_check< Traits, Resource >(0));
+    using type = decltype(has_unallocated_state_impl::_has_unallocated_state_check< Traits, Resource >(0));
 };
 
 // The type trait indicates whether the resource traits define an `is_allocated` static method
 template< typename Resource, typename Traits >
-struct has_deallocated_state : public has_deallocated_state_impl< Resource, Traits >::type { };
+struct has_unallocated_state : public has_unallocated_state_impl< Resource, Traits >::type { };
 
 template< typename Resource, bool UseCompactStorage >
 class resource_storage
@@ -546,11 +546,11 @@ using use_resource_compact_storage = detail::disjunction<
 >;
 
 // The type trait indicates whether we can use optimized implementation of \c unique_resource without an extra "allocated" flag
-template< typename Resource, typename Traits, bool = detail::conjunction< has_deallocated_state< Resource, Traits >, has_custom_default< Resource, Traits > >::value >
-struct use_deallocated_state : public std::false_type { };
+template< typename Resource, typename Traits, bool = detail::conjunction< has_unallocated_state< Resource, Traits >, has_custom_default< Resource, Traits > >::value >
+struct use_unallocated_state : public std::false_type { };
 
 template< typename Resource, typename Traits >
-struct use_deallocated_state< Resource, Traits, true > :
+struct use_unallocated_state< Resource, Traits, true > :
     public detail::conjunction<
         std::integral_constant< bool, noexcept(Traits::make_default()) >,
         std::is_nothrow_assignable< Resource&, decltype(Traits::make_default()) >
@@ -558,7 +558,7 @@ struct use_deallocated_state< Resource, Traits, true > :
 {
 };
 
-template< typename Resource, typename Deleter, typename Traits, bool = use_deallocated_state< Resource, Traits >::value >
+template< typename Resource, typename Deleter, typename Traits, bool = use_unallocated_state< Resource, Traits >::value >
 class unique_resource_data :
     public detail::resource_holder< Resource, Traits, use_resource_compact_storage< Resource, Deleter >::value >,
     public detail::deleter_holder< Resource, Deleter >
@@ -711,7 +711,7 @@ public:
         return m_allocated;
     }
 
-    void set_deallocated() noexcept
+    void set_unallocated() noexcept
     {
         m_allocated = false;
     }
@@ -966,7 +966,7 @@ public:
         return traits_type::is_allocated(get_resource());
     }
 
-    void set_deallocated() noexcept
+    void set_unallocated() noexcept
     {
         get_internal_resource() = traits_type::make_default();
     }
@@ -1006,21 +1006,21 @@ private:
         resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
         deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()))
     {
-        that.set_deallocated();
+        that.set_unallocated();
     }
 
     unique_resource_data(unique_resource_data&& that, std::false_type, std::true_type) :
         resource_holder(static_cast< resource_type const& >(that.get_resource())),
         deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()))
     {
-        that.set_deallocated();
+        that.set_unallocated();
     }
 
     unique_resource_data(unique_resource_data&& that, std::true_type, std::false_type) try :
         resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
         deleter_holder(static_cast< deleter_type const& >(that.get_deleter()))
     {
-        that.set_deallocated();
+        that.set_unallocated();
     }
     catch (...)
     {
@@ -1033,7 +1033,7 @@ private:
         resource_holder(static_cast< resource_type const& >(that.get_resource())),
         deleter_holder(static_cast< deleter_type const& >(that.get_deleter()))
     {
-        that.set_deallocated();
+        that.set_unallocated();
     }
 
     template<
@@ -1060,7 +1060,7 @@ private:
         get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
         get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
 
-        that.set_deallocated();
+        that.set_unallocated();
     }
 
     void assign(unique_resource_data&& that, std::false_type)
@@ -1068,7 +1068,7 @@ private:
         get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
         get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
 
-        that.set_deallocated();
+        that.set_unallocated();
     }
 
     void swap_impl(unique_resource_data& that, std::true_type, std::true_type) noexcept
@@ -1200,7 +1200,7 @@ struct dereference_traits< T, true >
  * resource value to initialize the owned resource object when \c unique_resource
  * is not in the allocated state. Additionally, it will be possible to construct
  * \c unique_resource with unallocated resource values, which will create
- * \c unique_resource objects in deallocated state (the deleter will not be called
+ * \c unique_resource objects in unallocated state (the deleter will not be called
  * on unallocated resource values).
  *
  * \tparam Resource Resource type.
@@ -1509,7 +1509,7 @@ public:
      */
     void release() noexcept
     {
-        m_data.set_deallocated();
+        m_data.set_unallocated();
     }
 
     /*!
@@ -1524,7 +1524,7 @@ public:
         if (BOOST_LIKELY(m_data.is_allocated()))
         {
             m_data.get_deleter()(m_data.get_resource());
-            m_data.set_deallocated();
+            m_data.set_unallocated();
         }
     }
 
@@ -1704,7 +1704,7 @@ unique_resource(Resource, Deleter) -> unique_resource< Resource, Deleter >;
  *
  * **Effects:** If the resource \a res is not equal to \a invalid, creates a unique resource wrapper
  *              that is in allocated state and owns \a res. Otherwise creates a unique resource wrapper
- *              in deallocated state.
+ *              in unallocated state.
  *
  * \note This function does not call \a del if \a res is equal to \a invalid.
  *
