@@ -55,6 +55,7 @@ class adder
     int x, y;
 
 public:
+    // Computes a sum of integers
     int compute()
     {
         // Reset variables on return
@@ -65,7 +66,15 @@ public:
         }
         BOOST_SCOPE_EXIT_END;
 
-        return x + y;
+        long long int sum = static_cast< long long int >(x) +
+            static_cast< long long int >(y);
+        if (sum < std::numeric_limits< int >::min() ||
+            sum > std::numeric_limits< int >::max())
+        {
+            throw std::overflow_error("Integer overflow");
+        }
+
+        return static_cast< int >(sum);
     }
 };
 ```
@@ -77,6 +86,7 @@ class adder
     int x, y;
 
 public:
+    // Computes a sum of integers
     int compute()
     {
         // Reset variables on return
@@ -86,7 +96,15 @@ public:
             y = 0;
         });
 
-        return x + y;
+        long long int sum = static_cast< long long int >(x) +
+            static_cast< long long int >(y);
+        if (sum < std::numeric_limits< int >::min() ||
+            sum > std::numeric_limits< int >::max())
+        {
+            throw std::overflow_error("Integer overflow");
+        }
+
+        return static_cast< int >(sum);
     }
 };
 ```
@@ -98,6 +116,7 @@ class adder
     int x, y;
 
 public:
+    // Computes a sum of integers
     int compute()
     {
         // Reset variables on return
@@ -107,7 +126,15 @@ public:
             y = 0;
         };
 
-        return x + y;
+        long long int sum = static_cast< long long int >(x) +
+            static_cast< long long int >(y);
+        if (sum < std::numeric_limits< int >::min() ||
+            sum > std::numeric_limits< int >::max())
+        {
+            throw std::overflow_error("Integer overflow");
+        }
+
+        return static_cast< int >(sum);
     }
 };
 ```
@@ -120,13 +147,13 @@ class collection
     std::set< Object > objects;
 
 public:
-    template< typename T >
-    void add_object(T const& arg)
+    // Adds a new object to the collection
+    Object& add_object()
     {
         typename std::set< Object >::iterator it =
             objects.insert(Object());
 
-        // Remove the object on failure
+        // Revert object insertion on exception
         unsigned int uncaught_count =
             boost::core::uncaught_exceptions();
         BOOST_SCOPE_EXIT_TPL(this_, it, uncaught_count)
@@ -137,7 +164,9 @@ public:
         BOOST_SCOPE_EXIT_END;
 
         // Throws on error
-        it->start(arg);
+        it->on_added(*this);
+
+        return *it;
     }
 };
 ```
@@ -150,19 +179,21 @@ class collection
     std::set< Object > objects;
 
 public:
-    template< typename T >
-    void add_object(T&& arg)
+    // Adds a new object to the collection
+    Object& add_object()
     {
         auto it = objects.emplace();
 
-        // Remove the object on failure
+        // Revert object insertion on exception
         auto cleanup = boost::scope::make_scope_fail([this, it]
         {
             objects.erase(it);
         });
 
         // Throws on error
-        it->start(std::forward< T >(arg));
+        it->on_added(*this);
+
+        return *it;
     }
 };
 ```
@@ -175,21 +206,137 @@ class collection
     std::set< Object > objects;
 
 public:
-    template< typename T >
-    void add_object(T&& arg)
+    // Adds a new object to the collection
+    Object& add_object()
     {
         auto it = objects.emplace();
 
-        // Remove the object on failure
+        // Revert object insertion on exception
         boost::scope::scope_fail cleanup{[this, it]
         {
             objects.erase(it);
         }};
 
         // Throws on error
-        it->start(std::forward< T >(arg));
+        it->on_added(*this);
+
+        return *it;
     }
 };
+```
+]]
+[[
+```
+// Writes a list of strings to the file, one per line
+bool save_to_file(std::vector< std::string > const& strings,
+    std::string const& filename)
+{
+    std::ofstream file(filename.c_str(),
+        std::ios_base::out | std::ios_base::trunc);
+    if (!file.is_open())
+        return false;
+
+    // Set a scope guard to remove the partially written file
+    // in case of error - exception or not
+    bool fail = true;
+    BOOST_SCOPE_EXIT(&fail, &filename, &file)
+    {
+        if (fail)
+        {
+            file.close(); // close the file to allow remove() to succeed
+            std::remove(filename.c_str());
+        }
+    }
+    BOOST_SCOPE_EXIT_END;
+
+    for (auto const& str : strings)
+    {
+        file << str << std::endl;
+        if (file.fail())
+            return false;
+    }
+
+    file.flush();
+
+    // Commit the operation if the stream is not in a failed state
+    fail = file.fail();
+
+    return !fail;
+}
+```
+]
+[
+```
+// Writes a list of strings to the file, one per line
+bool save_to_file(std::vector< std::string > const& strings,
+    std::string const& filename)
+{
+    std::ofstream file(filename.c_str(),
+        std::ios_base::out | std::ios_base::trunc);
+    if (!file.is_open())
+        return false;
+
+    // Set a scope guard to remove the partially written file
+    // in case of error - exception or not
+    auto remove_guard = boost::scope::make_scope_exit([&file, &filename]
+    {
+        file.close(); // close the file to allow remove() to succeed
+        std::remove(filename.c_str());
+    });
+
+    for (auto const& str : strings)
+    {
+        file << str << std::endl;
+        if (file.fail())
+            return false;
+    }
+
+    file.flush();
+    if (file.fail())
+        return false;
+
+    // Commit the operation
+    remove_guard.set_active(false);
+
+    return true;
+}
+```
+]
+[
+```
+// Writes a list of strings to the file, one per line
+bool save_to_file(std::vector< std::string > const& strings,
+    std::string const& filename)
+{
+    std::ofstream file(filename.c_str(),
+        std::ios_base::out | std::ios_base::trunc);
+    if (!file.is_open())
+        return false;
+
+    // Set a scope guard to remove the partially written file
+    // in case of error - exception or not
+    boost::scope::scope_exit remove_guard{[&file, &filename]
+    {
+        file.close(); // close the file to allow remove() to succeed
+        std::remove(filename.c_str());
+    }};
+
+    for (auto const& str : strings)
+    {
+        file << str << std::endl;
+        if (file.fail())
+            return false;
+    }
+
+    file.flush();
+    if (file.fail())
+        return false;
+
+    // Commit the operation
+    remove_guard.set_active(false);
+
+    return true;
+}
 ```
 ]]
 ]
