@@ -212,14 +212,19 @@ that does not identify an allocated resource that needs to be freed. For example
 the unallocated value, and for POSIX-like file descriptors, all negative values are unallocated values, since no valid file descriptor
 can be negative.
 
-If specified, resource traits must be a class with the following public static member functions:
+If `Resource` is the resource type specified in [class_scope_unique_resource] template parameters then, if specified, resource traits must
+be a class type with the following public static member functions:
 
-* `bool is_allocated(R const& r) noexcept` - must return `true` if the resource value `r` is an allocated resource value and `false` otherwise.
-* `R make_default() noexcept` - must return an unallocated resource value that can be used to initialize the default-constructed
-  [class_scope_unique_resource] object. Note that calling `is_allocated` on the value returned by `make_default` must always return `false`.
+* `bool is_allocated(Resource const& r) noexcept` - must return `true` if the resource value `r` is an allocated resource value and `false`
+  otherwise.
+* `R make_default() noexcept` - must return a value such that `std::is_constructible< Resource, R >::value && std::is_nothrow_assignable<
+  Resource&, R >::value` is `true` and constructing `Resource` from `R` produces an unallocated resource value that can be used to initialize
+  the default-constructed [class_scope_unique_resource] object.
 
-Note that all operations must be non-throwing. When the conforming resource traits are provided, [class_scope_unique_resource] behavior changes
-as follows:
+Note that all listed operations must be non-throwing. Given these definitions, calling `is_allocated` on the value returned by `make_default`
+must always return `false`.
+
+When the conforming resource traits are provided, [class_scope_unique_resource] behavior changes as follows:
 
 * [class_scope_unique_resource] will no longer separately track whether it is in allocated state or not and instead will use `is_allocated`
   on the wrapped resource value for this. In particular, this means that constructing [class_scope_unique_resource] from a resource value
@@ -278,6 +283,14 @@ will only be called if `open` succeeded.
 
 [tip The `fd_deleter`, `fd_resource_traits` and `unique_fd` types presented in the examples above are provided by the library out of
 the box in [boost_scope_fd_resource_hpp] and [boost_scope_unique_fd_hpp] headers.]
+
+[class_scope_unique_resource] also supports a reduced form of resource traits consisting of only the `R make_default()` public static
+member function, where `std::is_constructible< Resource, R >::value` is `true`. If resource traits are of this reduced form,
+[class_scope_unique_resource] will use the `make_default` function to initialize the resource value in [class_scope_unique_resource]
+default constructor, but otherwise will behave as if no resource traits were specified. In particular, [class_scope_unique_resource]
+will not distinguish between allocated and unallocated wrapped resource values. This mode of operation may be useful in cases when the
+resource type is not default-constructible, but there is a way to create an unallocated resource value that would allow
+[class_scope_unique_resource] to be default-constructible.
 
 [endsect]
 

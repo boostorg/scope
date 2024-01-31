@@ -151,7 +151,7 @@ template< typename Resource, typename Traits >
 struct has_custom_default_impl
 {
     template< typename Tr, typename R = decltype(Tr::make_default()) >
-    static typename std::is_constructible< Resource, R >::type _has_custom_default_check(int);
+    static std::true_type _has_custom_default_check(int);
     template< typename Tr >
     static std::false_type _has_custom_default_check(...);
 
@@ -159,8 +159,17 @@ struct has_custom_default_impl
 };
 
 // The type trait indicates whether the resource traits define a `make_default` static method
+template< typename Resource, typename Traits, bool = has_custom_default_impl< Resource, Traits >::type::value >
+struct has_custom_default : public std::false_type { };
+
 template< typename Resource, typename Traits >
-struct has_custom_default : public has_custom_default_impl< Resource, Traits >::type { };
+struct has_custom_default< Resource, Traits, true > :
+    public std::true_type
+{
+    using default_resource_type = decltype(Traits::make_default());
+    static_assert(std::is_constructible< Resource, default_resource_type >::value && std::is_assignable< Resource&, default_resource_type >::value,
+        "Invalid unique_resource resource traits: resource must be constructible and assignable from the default resource value");
+};
 
 template< typename Resource, typename Traits >
 struct has_unallocated_state_impl
@@ -174,8 +183,16 @@ struct has_unallocated_state_impl
 };
 
 // The type trait indicates whether the resource traits define an `is_allocated` static method
+template< typename Resource, typename Traits, bool = has_unallocated_state_impl< Resource, Traits >::type::value >
+struct has_unallocated_state : public std::false_type { };
+
 template< typename Resource, typename Traits >
-struct has_unallocated_state : public has_unallocated_state_impl< Resource, Traits >::type { };
+struct has_unallocated_state< Resource, Traits, true > :
+    public std::true_type
+{
+    static_assert(noexcept(!!Traits::is_allocated(std::declval< Resource const& >())),
+        "Invalid unique_resource resource traits: is_allocated must be noexcept");
+};
 
 template< typename Resource, bool UseCompactStorage >
 class resource_storage
@@ -551,11 +568,11 @@ struct use_unallocated_state : public std::false_type { };
 
 template< typename Resource, typename Traits >
 struct use_unallocated_state< Resource, Traits, true > :
-    public detail::conjunction<
-        std::integral_constant< bool, noexcept(Traits::make_default()) >,
-        std::is_nothrow_assignable< Resource&, decltype(Traits::make_default()) >
-    >
+    public std::true_type
 {
+    static_assert(noexcept(Traits::make_default()), "Invalid unique_resource resource traits: make_default must be noexcept");
+    static_assert(std::is_nothrow_assignable< Resource&, decltype(Traits::make_default()) >::value,
+        "Invalid unique_resource resource traits: resource must be nothrow-assignable from the default resource value");
 };
 
 template< typename Resource, typename Deleter, typename Traits, bool = use_unallocated_state< Resource, Traits >::value >
@@ -1183,25 +1200,35 @@ struct dereference_traits< T, true >
  * \li Resource objects can be tested for being unallocated. Such a test shall
  *     not throw exceptions.
  *
- * If specified, the resource traits must be a class that has the following
+ * If specified, the resource traits must be a class type that has the following
  * public static members:
  *
- * \li `Resource make_default() noexcept` - must return the default resource
- *      value.
- * \li `bool is_allocated(Resource const& res) noexcept` - must
- *     return \c true if \c res is not one of the unallocated resource values
- *     and \c false otherwise.
+ * \li `R make_default() noexcept` - must return the default resource value such
+ *     that `std::is_constructible< Resource, R >::value &&
+ *     std::is_nothrow_assignable< Resource&, R >::value` is \c true.
+ * \li `bool is_allocated(Resource const& res) noexcept` - must return \c true
+ *     if \c res is not one of the unallocated resource values and \c false
+ *     otherwise.
  *
  * Note that `is_allocated(make_default())` must always return \c false.
  *
- * When conforming resource traits are specified, \c unique_resource will be able
- * to avoid storing additional indication of whether the owned resource object
- * needs to be deallocated with the deleter on destruction. It will use the default
- * resource value to initialize the owned resource object when \c unique_resource
- * is not in the allocated state. Additionally, it will be possible to construct
- * \c unique_resource with unallocated resource values, which will create
- * \c unique_resource objects in unallocated state (the deleter will not be called
- * on unallocated resource values).
+ * When resource traits satisfying the above requirements are specified,
+ * \c unique_resource will be able to avoid storing additional indication of
+ * whether the owned resource object needs to be deallocated with the deleter
+ * on destruction. It will use the default resource value to initialize the owned
+ * resource object when \c unique_resource is not in the allocated state.
+ * Additionally, it will be possible to construct \c unique_resource with
+ * unallocated resource values, which will create \c unique_resource objects in
+ * unallocated state (the deleter will not be called on unallocated resource
+ * values).
+ * 
+ * `unique_resource` also supports a "reduced" form of resource traits, where
+ * the traits only provide a `R make_default()` public static member function, where
+ * `std::is_constructible< Resource, R >::value` is \c true. In this case,
+ * `unique_resource` will use `make_default` in its default constructor to
+ * initialize the stored resource object, but will otherwise behave as if no
+ * resource traits were specified. In particular, `unique_resource` will not
+ * distinguish between allocated and unallocated wrapped resource values.
  *
  * \tparam Resource Resource type.
  * \tparam Deleter Resource deleter function object type.

@@ -819,11 +819,16 @@ public:
     {
     }
 
-    copyable_resource(copyable_resource const&) = default;
-    copyable_resource& operator= (copyable_resource const&) = default;
+    copyable_resource(copyable_resource const& that) noexcept :
+        m_value(that.m_value)
+    {
+    }
 
-    copyable_resource(copyable_resource&&) = delete;
-    copyable_resource& operator= (copyable_resource&&) = delete;
+    copyable_resource& operator= (copyable_resource const& that) noexcept
+    {
+        m_value = that.m_value;
+        return *this;
+    }
 
     int get() const noexcept
     {
@@ -907,69 +912,6 @@ struct wrapped_int_resource_traits
     static bool is_allocated(Resource const& res) noexcept
     {
         return res.get() >= 0;
-    }
-};
-
-// Specially-crafted resource type that is:
-// * nothrow move-constructible
-// * NOT-nothrow move-assignable
-// * has data layout which favors placing the "allocated" flag in unique_resource in its tail padding
-class move_constructible_resource
-{
-private:
-    int m_n1;
-    signed char m_n2;
-
-public:
-    constexpr move_constructible_resource() noexcept : m_n1(0), m_n2(0) { }
-    explicit move_constructible_resource(int n1, signed char n2 = 0) noexcept : m_n1(n1), m_n2(n2) { }
-
-    move_constructible_resource(move_constructible_resource&& that) noexcept : m_n1(that.m_n1), m_n2(that.m_n2)
-    {
-        that.m_n1 = 0;
-        that.m_n2 = 0;
-    }
-
-    move_constructible_resource(move_constructible_resource const& that) : m_n1(that.m_n1), m_n2(that.m_n2)
-    {
-    }
-
-    move_constructible_resource& operator= (move_constructible_resource&& that) // not noexcept
-    {
-        m_n1 = that.m_n1;
-        m_n2 = that.m_n2;
-        that.m_n1 = 0;
-        that.m_n2 = 0;
-        return *this;
-    }
-
-    move_constructible_resource& operator= (move_constructible_resource const& that)
-    {
-        m_n1 = that.m_n1;
-        m_n2 = that.m_n2;
-        return *this;
-    }
-
-    bool operator== (move_constructible_resource const& that) const noexcept
-    {
-        return m_n1 == that.m_n1 && m_n2 == that.m_n2;
-    }
-
-    bool operator!= (move_constructible_resource const& that) const noexcept
-    {
-        return !operator==(that);
-    }
-
-    friend std::ostream& operator<< (std::ostream& strm, move_constructible_resource const& res)
-    {
-        strm << "{ " << res.m_n1 << ", " << static_cast< int >(res.m_n2) << " }";
-        return strm;
-    }
-
-    friend void copy_resource(move_constructible_resource const& from, move_constructible_resource& to)
-    {
-        to.m_n1 = from.m_n1;
-        to.m_n2 = from.m_n2;
     }
 };
 
@@ -1137,13 +1079,102 @@ void check_throw_deleter()
         BOOST_TEST_EQ(deleted_res1, moveable_resource{ 10 });
         BOOST_TEST_EQ(deleted_res2, moveable_resource{ 20 });
     }
+}
 
-    n = 0;
+// Specially-crafted resource type that is:
+// * nothrow move-constructible
+// * NOT-nothrow move-assignable
+// * has data layout which favors placing the "allocated" flag in unique_resource in its tail padding
+class move_constructible_resource
+{
+public:
+    // A special tag to construct "default" resource value
+    struct default_tag { };
+
+private:
+    int m_n1;
+    signed char m_n2;
+
+public:
+    constexpr move_constructible_resource() noexcept : m_n1(0), m_n2(0) { }
+
+    // For compatibility with move_constructible_resource_traits::make_default()
+    explicit constexpr move_constructible_resource(default_tag) noexcept : move_constructible_resource() { }
+
+    explicit move_constructible_resource(int n1, signed char n2 = 0) noexcept : m_n1(n1), m_n2(n2) { }
+
+    move_constructible_resource(move_constructible_resource&& that) noexcept : m_n1(that.m_n1), m_n2(that.m_n2)
+    {
+        that.m_n1 = 0;
+        that.m_n2 = 0;
+    }
+
+    move_constructible_resource(move_constructible_resource const& that) : m_n1(that.m_n1), m_n2(that.m_n2)
+    {
+    }
+
+    move_constructible_resource& operator= (move_constructible_resource&& that) // not noexcept
+    {
+        m_n1 = that.m_n1;
+        m_n2 = that.m_n2;
+        that.m_n1 = 0;
+        that.m_n2 = 0;
+        return *this;
+    }
+
+    move_constructible_resource& operator= (move_constructible_resource const& that)
+    {
+        m_n1 = that.m_n1;
+        m_n2 = that.m_n2;
+        return *this;
+    }
+
+    // For compatibility with move_constructible_resource_traits::make_default()
+    move_constructible_resource& operator= (default_tag) noexcept
+    {
+        m_n1 = 0;
+        m_n2 = 0;
+        return *this;
+    }
+
+    bool operator== (move_constructible_resource const& that) const noexcept
+    {
+        return m_n1 == that.m_n1 && m_n2 == that.m_n2;
+    }
+
+    bool operator!= (move_constructible_resource const& that) const noexcept
+    {
+        return !operator==(that);
+    }
+
+    friend std::ostream& operator<< (std::ostream& strm, move_constructible_resource const& res)
+    {
+        strm << "{ " << res.m_n1 << ", " << static_cast< int >(res.m_n2) << " }";
+        return strm;
+    }
+
+    friend void copy_resource(move_constructible_resource const& from, move_constructible_resource& to)
+    {
+        to.m_n1 = from.m_n1;
+        to.m_n2 = from.m_n2;
+    }
+};
+
+//! Resource traits for \c move_constructible_resource
+struct move_constructible_resource_traits
+{
+    static move_constructible_resource::default_tag make_default() noexcept { return move_constructible_resource::default_tag{}; }
+    static bool is_allocated(move_constructible_resource const& res) noexcept { return res != move_constructible_resource{}; }
+};
+
+void check_throw_deleter_move_constructible_resource()
+{
+    int n = 0;
     {
         move_constructible_resource deleted_res1;
         try
         {
-            using unique_resource_t = boost::scope::unique_resource< move_constructible_resource, throwing_resource_deleter< move_constructible_resource >, Traits< move_constructible_resource > >;
+            using unique_resource_t = boost::scope::unique_resource< move_constructible_resource, throwing_resource_deleter< move_constructible_resource >, move_constructible_resource_traits >;
             unique_resource_t ur1{ move_constructible_resource(10, 5), throwing_resource_deleter< move_constructible_resource >(deleted_res1, n) };
             ur1.get_deleter().set_throw(true);
             try
@@ -1320,6 +1351,14 @@ struct int_resource_traits
     }
 };
 
+struct reduced_int_resource_traits
+{
+    static int make_default()
+    {
+        return -1;
+    }
+};
+
 void check_resource_traits()
 {
     {
@@ -1471,6 +1510,35 @@ void check_resource_traits()
     BOOST_TEST_EQ(n, 2);
     BOOST_TEST_EQ(deleted_res1, 10);
     BOOST_TEST_EQ(deleted_res2, 20);
+
+    // Test reduced resource traits
+    {
+        boost::scope::unique_resource< int, empty_resource_deleter< int >, reduced_int_resource_traits > ur;
+        BOOST_TEST_EQ(ur.get(), reduced_int_resource_traits::make_default());
+        BOOST_TEST(!ur.allocated());
+    }
+
+    n = 0;
+    deleted_res1 = ~reduced_int_resource_traits::make_default();
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, reduced_int_resource_traits > ur{ reduced_int_resource_traits::make_default(), checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur.get(), reduced_int_resource_traits::make_default());
+        BOOST_TEST(ur.allocated());
+        BOOST_TEST(!!ur);
+    }
+    BOOST_TEST_EQ(n, 1);
+    BOOST_TEST_EQ(deleted_res1, reduced_int_resource_traits::make_default());
+
+    n = 0;
+    deleted_res1 = -1;
+    {
+        boost::scope::unique_resource< int, checking_resource_deleter< int >, reduced_int_resource_traits > ur{ -10, checking_resource_deleter< int >(deleted_res1, n) };
+        BOOST_TEST_EQ(ur.get(), -10);
+        BOOST_TEST(ur.allocated());
+        BOOST_TEST(!!ur);
+    }
+    BOOST_TEST_EQ(n, 1);
+    BOOST_TEST_EQ(deleted_res1, -10);
 }
 
 #if !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_NO_CXX17_AUTO_NONTYPE_TEMPLATE_PARAMS)
@@ -1577,6 +1645,7 @@ int main()
     check_throw_resource();
     check_throw_deleter< default_resource_traits >();
     check_throw_deleter< wrapped_int_resource_traits >();
+    check_throw_deleter_move_constructible_resource();
     check_deduction();
     check_resource_traits();
 #if !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_NO_CXX17_AUTO_NONTYPE_TEMPLATE_PARAMS)

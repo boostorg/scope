@@ -33,6 +33,9 @@ Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/2557
 * [link scope.unique_resource `unique_resource`] move constructor was modified to preserve the original state of the
   source argument in case of exception. This deviates from the TS behavior, which specifies to invoke the deleter on
   the move-constructed resource, but it means the move constructor now maintains strong exception guarantee.
+* Enforced compile-time correctness checks for [link scope.unique_resource `unique_resource`] resource traits specified
+  by user. Improved description of requirements for the resource traits. Documented the "reduced" resource traits that
+  only allow customizing the default resource value but do not otherwise change `unique_resource` behavior.
 
 [heading 0.1]
 
