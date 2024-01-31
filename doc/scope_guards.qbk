@@ -181,32 +181,48 @@ request, whether successfully or with an exception, for diagnostic purposes.
 Each of the scope guards described in this section supports active and inactive states. The action function object will only be
 called if the scope guard is in active state while being destroyed. By default, scope guards are created in the active state, but
 this can be changed by passing `false` as the last argument for the constructor. Scope guards can also be deactivated or
-re-activated during their lifetime by calling `set_active` method, which can be useful if the scope guard needs to be activated
-based on some run time condition after it is created.
+activated during their lifetime by calling the `set_active` method. Deactivating the scope guard is often used as a way to
+"commit" the effects of the block of code between the scope guard creation and deactivation. Manual activation of a scope guard
+can sometimes be useful if the scope guard needs to be created before it becomes known whether the scope guard action needs
+to be executed (e.g. when the scope guard needs to be created at an outer scope compared to where the decision on whether it should
+be enabled is made).
 
     class collection
     {
-        std::set< std::shared_ptr< object > > objects;
+        std::map< int, object > objects;
 
     public:
-        void add_object(std::shared_ptr< object > const& obj)
+        // Finds an existing object by key or creates a new one and returns a reference to it
+        object& obtain_object(int key)
         {
-            // Create a deactivated scope guard initially
-            std::set< std::shared_ptr< object > >::iterator it;
+            // Find the object or the position where it should be
+            auto it = objects.lower_bound(key);
+
+            // Create an inactive scope guard initially. Needs to be created
+            // at this scope to cover the on_requested() call below.
             boost::scope::scope_fail rollback_guard{[&]
             {
+                // Remove the object that was just inserted
                 objects.erase(it);
             },
             false};
 
-            bool inserted;
-            std::tie(it, inserted) = objects.insert(obj);
+            if (it == objects.end() || it->first != key)
+            {
+                // Insert a new object that correspond to the specified key
+                it = objects.emplace_hint(it, key, object{});
 
-            // Activate rollback guard, if the object was inserted
-            rollback_guard.set_active(inserted);
+                // Activate rollback guard to revert the insertion in case of error
+                rollback_guard.set_active(true);
 
-            // Notify the object that is a member of the collection. May throw.
-            obj->on_added_to_collection(*this);
+                // Initialize the inserted object. May throw.
+                it->second.initialize(*this, key);
+            }
+
+            // Notify the object that is has been requested. May throw.
+            it->second.on_requested();
+
+            return it->second;
         }
     };
 
@@ -379,7 +395,7 @@ for the constructor or factory function, after the action function object. If th
 the default constructor doesn't throw, the function object may be omitted from the scope guard constructor arguments.
 
     // Writes a string to a file using a file descriptor, with file locking.
-    // Reports errors either via an error_code parameter.
+    // Reports errors via an error_code parameter.
     void locked_write_string(int fd, std::string const& str, std::error_code& ec)
     {
         int err = 0;
@@ -390,27 +406,29 @@ the default constructor doesn't throw, the function object may be omitted from t
             // Action function object
             [&] { ec = std::error_code(err, std::generic_category()); },
             // Condition function object
-            [&err]() noexcept { return err != 0 && err != EINTR; }
+            [&err]() noexcept { return err != 0; }
+        };
+
+        // Performs a lock operation on the file descriptor, returns error code or 0 on success
+        auto lock_operation = [fd](int operation)
+        {
+            while (flock(fd, operation) < 0)
+            {
+                int err = errno;
+                if (err != EINTR)
+                    return err;
+            }
+
+            return 0;
         };
 
         // Lock the file
-        while (flock(fd, LOCK_EX) < 0)
-        {
-            err = errno;
-            if (err != EINTR)
-                return;
-        }
+        err = lock_operation(LOCK_EX);
+        if (err != 0)
+            return;
 
         // Unlock the file on exit
-        BOOST_SCOPE_DEFER [&]
-        {
-            while (flock(fd, LOCK_UN) < 0)
-            {
-                err = errno;
-                if (err != EINTR)
-                    return;
-            }
-        };
+        BOOST_SCOPE_DEFER [&] { lock_operation(LOCK_UN); };
 
         // Write data
         const char* p = str.data();
@@ -422,7 +440,10 @@ the default constructor doesn't throw, the function object may be omitted from t
             {
                 err = errno;
                 if (err == EINTR)
+                {
+                    err = 0; // we do not want to report EINTR to the caller
                     continue;
+                }
                 return;
             }
 
@@ -454,7 +475,7 @@ For C++11 compilers, the library also provides a factory function `check_error_c
 this condition function object like this:
 
     // Writes a string to a file using a file descriptor, with file locking.
-    // Reports errors either via an error_code parameter.
+    // Reports errors via an error_code parameter.
     void locked_write_string(int fd, std::string const& str, std::error_code& ec)
     {
         int err = 0;
@@ -463,20 +484,13 @@ this condition function object like this:
         boost::scope::scope_fail fail_guard
         {
             // Action function object
-            [&]
-            {
-                if (err != EINTR)
-                    ec = std::error_code(err, std::generic_category());
-            },
+            [&] { ec = std::error_code(err, std::generic_category()); },
             // Condition function object
             boost::scope::check_error_code(err)
         };
 
         // ...
     }
-
-Note that we had to move the test for `EINTR` to the scope guard action since [class_scope_error_code_checker] would only test `err`
-for being zero.
 
 [endsect]
 
@@ -511,7 +525,7 @@ As you can see, `BOOST_SCOPE_DEFER` offers a few syntax improvements over the ot
 * The declaration does not name a scope guard variable, meaning one does not need to invent one and there is no possibility to accidentally
   omit one or clash with other variables.
 * The declaration is generally shorter to type and easier to spot.
-* There are no extra parenthesis or curly brackets around the function object.
+* There are no extra parenthesis or curly braces around the function object.
 
 However, it should be noted that the use of the `BOOST_SCOPE_DEFER` macro is entirely optional. Users are free to use [class_scope_defer_guard]
 directly.
@@ -1265,8 +1279,8 @@ void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 
 Note that Boost.Scope guards don't provide `release()` member function and instead provide `set_active()` with a `bool` argument,
 where `release()` is equivalent to `set_active(false)`. This allows for both activating and deactivating the scope guard. The `bool`
-argument is especially convenient compared to two distinct methods for activating and deactivating the scope guard when the decision
-on whether the scope guard needs to be active is made at run time.
+argument is more convenient than two distinct methods for activating and deactivating the scope guard when the indication of whether
+the scope guard needs to be active is expressed as a run time value.
 
 [note At least one person during the Boost.Scope review [@https://lists.boost.org/Archives/boost/2023/11/255424.php noted] that
 `release()` is a poor name in the context of scope guards. This, and the fact that a method with a `bool` argument is more flexible
