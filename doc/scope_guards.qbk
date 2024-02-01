@@ -1227,6 +1227,7 @@ This feature can be emulated in TS using additional state that the scope guard a
 [[
 ```
 // Insert value into both containers and call on_inserted() afterwards.
+// pv may be null, in which case only insert the value into the set.
 // Maintain both containers intact if an exception is thrown.
 void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 {
@@ -1249,6 +1250,7 @@ void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 [
 ```
 // Insert value into both containers and call on_inserted() afterwards.
+// pv may be null, in which case only insert the value into the set.
 // Maintain both containers intact if an exception is thrown.
 void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 {
@@ -1280,7 +1282,19 @@ void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 Note that Boost.Scope guards don't provide `release()` member function and instead provide `set_active()` with a `bool` argument,
 where `release()` is equivalent to `set_active(false)`. This allows for both activating and deactivating the scope guard. The `bool`
 argument is more convenient than two distinct methods for activating and deactivating the scope guard when the indication of whether
-the scope guard needs to be active is expressed as a run time value.
+the scope guard needs to be active is expressed as a run time value. For example, the insertion into `set` above could be written
+like this:
+
+    std::set< int >::iterator it;
+    // Initially create an inactive scope guard to revert the insertion
+    boost::scope::scope_fail set_rollback([&set, &it] { set.erase(it); }, false);
+
+    // Try insering a new element into the set
+    bool inserted;
+    std::tie(it, inserted) = set.insert(value); // may throw
+
+    // Activate the scope guard only if the element was inserted
+    set_rollback.set_active(inserted);
 
 [note At least one person during the Boost.Scope review [@https://lists.boost.org/Archives/boost/2023/11/255424.php noted] that
 `release()` is a poor name in the context of scope guards. This, and the fact that a method with a `bool` argument is more flexible
