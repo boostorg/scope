@@ -331,11 +331,15 @@ For example, let's consider resource traits definition for Windows [@https://lea
         }
     };
 
-Here, `INVALID_HANDLE_VALUE` is a special constant returned by most Windows API functions that indicates no allocated resource associated with
-the handle. However, some functions, like [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess `OpenProcess`]
+Here, `INVALID_HANDLE_VALUE` is a special constant returned by some Windows API functions that indicates no allocated resource associated with
+the handle. However, other functions, like [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess `OpenProcess`]
 or [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openthread `OpenThread`] for example, return
-a `NULL` handle in case of errors, and we have to test for that value as well. With `unallocated_resource`, the above resource traits could be
-reduced to this:
+a `NULL` handle in case of errors, and we have to test for that value as well.
+
+[tip For the curious readers, there is an [@https://devblogs.microsoft.com/oldnewthing/20040302-00/?p=40443 article] describing reasons for this
+inconsistency between different Windows APIs.]
+
+With `unallocated_resource`, the above resource traits could be reduced to this:
 
     using handle_traits = boost::scope::unallocated_resource< INVALID_HANDLE_VALUE, (HANDLE)NULL >;
 
