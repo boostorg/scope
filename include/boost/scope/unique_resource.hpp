@@ -1476,13 +1476,14 @@ public:
     }
 
     /*!
-     * \brief Invokes `reset()` and destroys the resource.
+     * \brief If the resource is allocated, calls the deleter function on it. Destroys the resource and the deleter.
      *
      * **Throws:** Nothing, unless invoking the deleter throws.
      */
     ~unique_resource() noexcept(BOOST_SCOPE_DETAIL_DOC_HIDDEN(detail::is_nothrow_invocable< deleter_type&, resource_type& >::value))
     {
-        reset();
+        if (BOOST_LIKELY(m_data.is_allocated()))
+            m_data.get_deleter()(m_data.get_resource());
     }
 
     /*!
