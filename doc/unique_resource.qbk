@@ -146,10 +146,10 @@ passing it to `close`. This is necessary in this piece of code because we uncond
 with the value returned by `open`, which may be -1 indicating an error. By default, [class_scope_unique_resource] doesn't discriminate
 valid (i.e. allocated) resource values from invalid (i.e. unallocated), which means that from its perspective the value of -1 is a file
 descriptor that needs to be freed by calling the deleter on it. Therefore, the deleter must be prepared to handle resource values that are
-unallocated. Later on we will see how to change this.
+unallocated. Later on we will see how to mitigate this.
 
 [tip Besides the resource value, you can specify the deleter object as the second argument of the [class_scope_unique_resource] constructor.
-In fact, the second argument is mandatory if the deleter is not default-constructible or its default constructor may throw. This is
+In fact, the second argument is mandatory if the deleter is not default-constructible or if its default constructor may throw. This is
 necessary to be able to call the deleter on the passed resource value, should the construction of either the resource or the deleter throw.
 This ensures that the resource doesn't leak in case if [class_scope_unique_resource] initialization fails.]
 
@@ -196,12 +196,17 @@ Note that if `open` fails and returns -1, the deleter is guaranteed not to be ca
 `make_unique_resource_checked` nor by [class_scope_unique_resource], not even if [class_scope_unique_resource] construction fails with an
 exception. This allows us to simplify `fd_deleter` and remove the check for negative `fd` values.
 
+[tip If C++17 is supported, it is possible to use __boost_core_functor__ from __boost_core__ to wrap raw functions like `close` into
+a function object that can be specified as a deleter in `unique_resource`. For example, `fd_deleter` from the example above could be
+replaced with `boost::core::functor< close >`.]
+
 Furthermore, since the returned [class_scope_unique_resource] object now properly indicates whether the resource is allocated or not,
 we can use the `allocated` member function to test it instead of checking the resource value. This makes the code more readable.
 
 [note In order to avoid confusion with the [class_scope_unique_resource] object being always allocated after construction with a resource
-value, it is recommended to always use either the `make_unique_resource_checked` factory function or resource traits, as described in
-the next section. Resource traits are the preferred solution as it makes [class_scope_unique_resource] more efficient and less error-prone.]
+value, it is recommended to always use either the `make_unique_resource_checked` factory function or, more preferably, resource traits,
+as described in the next section. Resource traits are the preferred solution as it makes [class_scope_unique_resource] more efficient and
+less error-prone to use.]
 
 [section:resource_traits Resource traits]
 

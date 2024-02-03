@@ -930,7 +930,7 @@ public:
 ```
 ]
 [
-No. Capture `this` or use lambda capture initializers instead.
+No. Capture `this` or use lambda capture initializers (requires C++14) instead.
 
 ```
 class my_class
@@ -1089,7 +1089,19 @@ boost::scope::scope_fail guard([]
 Utilities for checking exceptions and error codes as criteria for invoking the action.
 ]
 [
-No.
+No, the condition needs to be embedded into the action code block.
+
+```
+const unsigned int uncaught_count = boost::core::uncaught_exceptions();
+BOOST_SCOPE_EXIT(uncaught_count)
+{
+    if (uncaught_count < boost::core::uncaught_exceptions())
+        std::cout << "Exception thrown!" << std::endl;
+}
+BOOST_SCOPE_EXIT_END;
+```
+
+Or:
 
 ```
 std::error_code ec;
@@ -1103,6 +1115,16 @@ BOOST_SCOPE_EXIT_END;
 ]
 [
 Yes, [class_scope_exception_checker] and [class_scope_error_code_checker].
+
+```
+// scope_fail by default checks for an exception
+boost::scope::scope_fail guard([]
+{
+    std::cout << "Exception thrown!" << std::endl;
+});
+```
+
+Or:
 
 ```
 std::error_code ec;
@@ -1305,7 +1327,7 @@ has no equivalent in the TS.
 
 [endsect]
 
-[section:looser_dtor_noexcept Looser `noexcept` specification on destructors]
+[section:relaxed_dtor_noexcept Relaxed `noexcept` specification on destructors]
 
 In the Library Fundamentals TS, only `scope_success` action is allowed to throw exceptions, while `scope_fail` and `scope_exit`
 destructors are unconditionally marked `noexcept`. Since the TS does not support custom condition functions, `scope_fail` can only
