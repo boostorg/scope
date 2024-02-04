@@ -1351,14 +1351,6 @@ struct int_resource_traits
     }
 };
 
-struct reduced_int_resource_traits
-{
-    static int make_default()
-    {
-        return -1;
-    }
-};
-
 void check_resource_traits()
 {
     {
@@ -1510,35 +1502,6 @@ void check_resource_traits()
     BOOST_TEST_EQ(n, 2);
     BOOST_TEST_EQ(deleted_res1, 10);
     BOOST_TEST_EQ(deleted_res2, 20);
-
-    // Test reduced resource traits
-    {
-        boost::scope::unique_resource< int, empty_resource_deleter< int >, reduced_int_resource_traits > ur;
-        BOOST_TEST_EQ(ur.get(), reduced_int_resource_traits::make_default());
-        BOOST_TEST(!ur.allocated());
-    }
-
-    n = 0;
-    deleted_res1 = ~reduced_int_resource_traits::make_default();
-    {
-        boost::scope::unique_resource< int, checking_resource_deleter< int >, reduced_int_resource_traits > ur{ reduced_int_resource_traits::make_default(), checking_resource_deleter< int >(deleted_res1, n) };
-        BOOST_TEST_EQ(ur.get(), reduced_int_resource_traits::make_default());
-        BOOST_TEST(ur.allocated());
-        BOOST_TEST(!!ur);
-    }
-    BOOST_TEST_EQ(n, 1);
-    BOOST_TEST_EQ(deleted_res1, reduced_int_resource_traits::make_default());
-
-    n = 0;
-    deleted_res1 = -1;
-    {
-        boost::scope::unique_resource< int, checking_resource_deleter< int >, reduced_int_resource_traits > ur{ -10, checking_resource_deleter< int >(deleted_res1, n) };
-        BOOST_TEST_EQ(ur.get(), -10);
-        BOOST_TEST(ur.allocated());
-        BOOST_TEST(!!ur);
-    }
-    BOOST_TEST_EQ(n, 1);
-    BOOST_TEST_EQ(deleted_res1, -10);
 }
 
 #if !defined(BOOST_NO_CXX17_FOLD_EXPRESSIONS) && !defined(BOOST_NO_CXX17_AUTO_NONTYPE_TEMPLATE_PARAMS)

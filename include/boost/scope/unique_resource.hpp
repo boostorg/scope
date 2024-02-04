@@ -55,21 +55,21 @@ namespace scope {
  * from, and comparison for (in)equality with \c DefaultValue or any of the resource
  * values listed in \c UnallocatedValues.
  */
-template< auto DefaultValue, decltype(DefaultValue)... UnallocatedValues >
+template< auto DefaultValue, auto... UnallocatedValues >
 struct unallocated_resource
 {
-    //! Resource type
-    using resource_type = decltype(DefaultValue);
-
     //! Returns the default resource value
-    static resource_type make_default() noexcept(std::is_nothrow_move_constructible< resource_type >::value)
+    static decltype(DefaultValue) make_default() noexcept
     {
         return DefaultValue;
     }
 
-    //! Tests if \a res is an allocated resource value (i.e. not the default)
-    static bool is_allocated(resource_type const& res) noexcept(noexcept(res != DefaultValue))
+    //! Tests if \a res is an allocated resource value
+    template< typename Resource >
+    static bool is_allocated(Resource const& res) noexcept
     {
+        static_assert(noexcept(res != DefaultValue && (... && (res != UnallocatedValues))),
+            "Invalid unallocated resource value types: comparing resource values with the unallocated values must be noexcept");
         return res != DefaultValue && (... && (res != UnallocatedValues));
     }
 };
@@ -147,153 +147,16 @@ struct wrap_reference< T& >
     using type = ref_wrapper< T >;
 };
 
-template< typename Resource, typename Traits >
-struct has_custom_default_impl
-{
-    template< typename Tr, typename R = decltype(Tr::make_default()) >
-    static std::true_type _has_custom_default_check(int);
-    template< typename Tr >
-    static std::false_type _has_custom_default_check(...);
-
-    using type = decltype(has_custom_default_impl::_has_custom_default_check< Traits >(0));
-};
-
-// The type trait indicates whether the resource traits define a `make_default` static method
-template< typename Resource, typename Traits, bool = has_custom_default_impl< Resource, Traits >::type::value >
-struct has_custom_default : public std::false_type { };
-
-template< typename Resource, typename Traits >
-struct has_custom_default< Resource, Traits, true > :
-    public std::true_type
-{
-    using default_resource_type = decltype(Traits::make_default());
-    static_assert(std::is_constructible< Resource, default_resource_type >::value && std::is_assignable< Resource&, default_resource_type >::value,
-        "Invalid unique_resource resource traits: resource must be constructible and assignable from the default resource value");
-};
-
-template< typename Resource, typename Traits >
-struct has_unallocated_state_impl
-{
-    template< typename Tr, typename Res, typename R = decltype(!!Tr::is_allocated(std::declval< Res const& >())) >
-    static std::true_type _has_unallocated_state_check(int);
-    template< typename Tr, typename Res >
-    static std::false_type _has_unallocated_state_check(...);
-
-    using type = decltype(has_unallocated_state_impl::_has_unallocated_state_check< Traits, Resource >(0));
-};
-
-// The type trait indicates whether the resource traits define an `is_allocated` static method
-template< typename Resource, typename Traits, bool = has_unallocated_state_impl< Resource, Traits >::type::value >
-struct has_unallocated_state : public std::false_type { };
-
-template< typename Resource, typename Traits >
-struct has_unallocated_state< Resource, Traits, true > :
-    public std::true_type
-{
-    static_assert(noexcept(!!Traits::is_allocated(std::declval< Resource const& >())),
-        "Invalid unique_resource resource traits: is_allocated must be noexcept");
-};
-
 template< typename Resource, bool UseCompactStorage >
-class resource_storage
-{
-public:
-    using resource_type = Resource;
-    using internal_resource_type = typename wrap_reference< Resource >::type;
-
-private:
-    // Note: Not using compact_storage since we will need to reuse storage for this complete object in move_from
-    internal_resource_type m_resource;
-
-public:
-    template<
-        bool Requires = std::is_default_constructible< internal_resource_type >::value,
-        typename = typename std::enable_if< Requires >::type
-    >
-    constexpr resource_storage() noexcept(std::is_nothrow_default_constructible< internal_resource_type >::value) :
-        m_resource()
-    {
-    }
-
-    template<
-        typename R,
-        typename = typename std::enable_if< std::is_constructible< internal_resource_type, R >::value >::type
-    >
-    explicit resource_storage(R&& res) noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
-        m_resource(static_cast< R&& >(res))
-    {
-    }
-
-    internal_resource_type& get() noexcept
-    {
-        return m_resource;
-    }
-
-    internal_resource_type const& get() const noexcept
-    {
-        return m_resource;
-    }
-
-    void move_from(internal_resource_type&& that)
-        noexcept(std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::value)
-    {
-        internal_resource_type* p = boost::addressof(m_resource);
-        p->~internal_resource_type();
-        new (p) internal_resource_type(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that));
-    }
-};
-
-template< typename Resource >
-class resource_storage< Resource, true > :
+class resource_holder :
     public detail::compact_storage< typename wrap_reference< Resource >::type >
 {
 public:
     using resource_type = Resource;
-    using internal_resource_type = typename wrap_reference< Resource >::type;
+    using internal_resource_type = typename wrap_reference< resource_type >::type;
 
 private:
     using resource_base = detail::compact_storage< internal_resource_type >;
-
-public:
-    template<
-        bool Requires = std::is_default_constructible< internal_resource_type >::value,
-        typename = typename std::enable_if< Requires >::type
-    >
-    constexpr resource_storage() noexcept(std::is_nothrow_default_constructible< internal_resource_type >::value) :
-        resource_base()
-    {
-    }
-
-    template<
-        typename R,
-        typename = typename std::enable_if< std::is_constructible< internal_resource_type, R >::value >::type
-    >
-    explicit resource_storage(R&& res) noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
-        resource_base(static_cast< R&& >(res))
-    {
-    }
-
-    using resource_base::get;
-
-    void move_from(internal_resource_type&& that) noexcept(std::is_nothrow_move_assignable< internal_resource_type >::value)
-    {
-        resource_base::get() = static_cast< internal_resource_type&& >(that);
-    }
-};
-
-template< typename Resource, typename Traits, bool UseCompactStorage, bool = has_custom_default< Resource, Traits >::value >
-class resource_holder :
-    public detail::resource_storage< Resource, UseCompactStorage >
-{
-public:
-    using resource_type = Resource;
-
-private:
-    using resource_base = detail::resource_storage< resource_type, UseCompactStorage >;
-
-public:
-    using internal_resource_type = typename resource_base::internal_resource_type;
-    using traits_type = Traits;
 
 public:
     template<
@@ -344,6 +207,11 @@ public:
         return resource_base::get();
     }
 
+    void move_from(internal_resource_type&& that) noexcept(std::is_nothrow_move_assignable< internal_resource_type >::value)
+    {
+        resource_base::get() = static_cast< internal_resource_type&& >(that);
+    }
+
 private:
     template< typename R, typename D >
     explicit resource_holder(R&& res, D&& del, bool allocated, std::true_type) noexcept :
@@ -363,27 +231,24 @@ private:
     }
 };
 
-template< typename Resource, typename Traits, bool UseCompactStorage >
-class resource_holder< Resource, Traits, UseCompactStorage, true > :
-    public detail::resource_storage< Resource, UseCompactStorage >
+template< typename Resource >
+class resource_holder< Resource, false >
 {
 public:
     using resource_type = Resource;
+    using internal_resource_type = typename wrap_reference< resource_type >::type;
 
 private:
-    using resource_base = detail::resource_storage< resource_type, UseCompactStorage >;
+    // Note: Not using compact_storage since we will need to reuse storage for this complete object in move_from
+    internal_resource_type m_resource;
 
 public:
-    using internal_resource_type = typename resource_base::internal_resource_type;
-    using traits_type = Traits;
-
-public:
-    constexpr resource_holder()
-        noexcept(detail::conjunction<
-            std::integral_constant< bool, noexcept(traits_type::make_default()) >,
-            std::is_nothrow_constructible< internal_resource_type, decltype(traits_type::make_default()) >
-        >::value) :
-        resource_base(traits_type::make_default())
+    template<
+        bool Requires = std::is_default_constructible< internal_resource_type >::value,
+        typename = typename std::enable_if< Requires >::type
+    >
+    constexpr resource_holder() noexcept(std::is_nothrow_default_constructible< internal_resource_type >::value) :
+        m_resource()
     {
     }
 
@@ -392,7 +257,7 @@ public:
         typename = typename std::enable_if< std::is_constructible< internal_resource_type, R >::value >::type
     >
     explicit resource_holder(R&& res) noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
-        resource_base(static_cast< R&& >(res))
+        m_resource(static_cast< R&& >(res))
     {
     }
 
@@ -402,40 +267,48 @@ public:
         typename = typename std::enable_if< std::is_constructible< internal_resource_type, R >::value >::type
     >
     explicit resource_holder(R&& res, D&& del, bool allocated) noexcept(std::is_nothrow_constructible< internal_resource_type, R >::value) :
-        resource_holder(static_cast< R&& >(res), static_cast< D&& >(del), allocated, typename std::is_nothrow_constructible< internal_resource_type, R >::type())
+        resource_holder(static_cast< R&& >(res), static_cast< D&& >(del), allocated, typename std::is_nothrow_constructible< resource_type, R >::type())
     {
     }
 
     resource_type& get() noexcept
     {
-        return resource_base::get();
+        return m_resource;
     }
 
     resource_type const& get() const noexcept
     {
-        return resource_base::get();
+        return m_resource;
     }
 
     internal_resource_type& get_internal() noexcept
     {
-        return resource_base::get();
+        return m_resource;
     }
 
     internal_resource_type const& get_internal() const noexcept
     {
-        return resource_base::get();
+        return m_resource;
+    }
+
+    void move_from(internal_resource_type&& that)
+        noexcept(std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::value)
+    {
+        internal_resource_type* p = boost::addressof(m_resource);
+        p->~internal_resource_type();
+        new (p) internal_resource_type(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that));
     }
 
 private:
     template< typename R, typename D >
     explicit resource_holder(R&& res, D&& del, bool allocated, std::true_type) noexcept :
-        resource_base(static_cast< R&& >(res))
+        m_resource(static_cast< R&& >(res))
     {
     }
 
     template< typename R, typename D >
     explicit resource_holder(R&& res, D&& del, bool allocated, std::false_type) try :
-        resource_base(res)
+        m_resource(res)
     {
     }
     catch (...)
@@ -527,7 +400,7 @@ private:
 /*
  * This metafunction indicates whether \c resource_holder should use \c compact_storage
  * to optimize storage for the resource object. Its definition must be coherent with
- * `resource_storage::move_from` definition and move constructor implementation in
+ * `resource_holder::move_from` definition and move constructor implementation in
  * \c unique_resource_data.
  *
  * There is one tricky case with \c unique_resource move constructor, when the resource move
@@ -562,31 +435,304 @@ using use_resource_compact_storage = detail::disjunction<
     detail::negation< std::is_nothrow_constructible< typename wrap_reference< Resource >::type, typename detail::move_or_copy_construct_ref< Resource >::type > >
 >;
 
-// The type trait indicates whether we can use optimized implementation of \c unique_resource without an extra "allocated" flag
-template< typename Resource, typename Traits, bool = detail::conjunction< has_unallocated_state< Resource, Traits >, has_custom_default< Resource, Traits > >::value >
-struct use_unallocated_state : public std::false_type { };
-
-template< typename Resource, typename Traits >
-struct use_unallocated_state< Resource, Traits, true > :
-    public std::true_type
-{
-    static_assert(noexcept(Traits::make_default()), "Invalid unique_resource resource traits: make_default must be noexcept");
-    static_assert(std::is_nothrow_assignable< Resource&, decltype(Traits::make_default()) >::value,
-        "Invalid unique_resource resource traits: resource must be nothrow-assignable from the default resource value");
-};
-
-template< typename Resource, typename Deleter, typename Traits, bool = use_unallocated_state< Resource, Traits >::value >
+template< typename Resource, typename Deleter, typename Traits >
 class unique_resource_data :
-    public detail::resource_holder< Resource, Traits, use_resource_compact_storage< Resource, Deleter >::value >,
+    public detail::resource_holder< Resource, use_resource_compact_storage< Resource, Deleter >::value >,
     public detail::deleter_holder< Resource, Deleter >
 {
 public:
     using resource_type = Resource;
     using deleter_type = Deleter;
     using traits_type = Traits;
-    using resource_holder = detail::resource_holder< resource_type, traits_type, use_resource_compact_storage< resource_type, deleter_type >::value >;
-    using internal_resource_type = typename resource_holder::internal_resource_type;
+
+private:
+    using resource_holder = detail::resource_holder< resource_type, use_resource_compact_storage< resource_type, deleter_type >::value >;
     using deleter_holder = detail::deleter_holder< resource_type, deleter_type >;
+    using result_of_make_default = decltype(traits_type::make_default());
+
+public:
+    using internal_resource_type = typename resource_holder::internal_resource_type;
+    using internal_deleter_type = typename deleter_holder::internal_deleter_type;
+
+    static_assert(noexcept(traits_type::make_default()), "Invalid unique_resource resource traits: make_default must be noexcept");
+    static_assert(std::is_nothrow_assignable< internal_resource_type&, result_of_make_default >::value,
+        "Invalid unique_resource resource traits: resource must be nothrow-assignable from the result of make_default");
+    static_assert(noexcept(traits_type::is_allocated(std::declval< resource_type const& >())), "Invalid unique_resource resource traits: is_allocated must be noexcept");
+
+public:
+    template<
+        bool Requires = detail::conjunction<
+            std::is_constructible< resource_holder, result_of_make_default >,
+            std::is_default_constructible< deleter_holder >
+        >::value,
+        typename = typename std::enable_if< Requires >::type
+    >
+    constexpr unique_resource_data()
+        noexcept(detail::conjunction<
+            std::is_nothrow_constructible< resource_holder, result_of_make_default >,
+            std::is_nothrow_default_constructible< deleter_holder >
+        >::value) :
+        resource_holder(traits_type::make_default()),
+        deleter_holder()
+    {
+    }
+
+    unique_resource_data(unique_resource_data const&) = delete;
+    unique_resource_data& operator= (unique_resource_data const&) = delete;
+
+    unique_resource_data(unique_resource_data&& that)
+        noexcept(detail::conjunction<
+            std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >,
+            std::is_nothrow_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >
+        >::value) :
+        unique_resource_data
+        (
+            static_cast< unique_resource_data&& >(that),
+            typename std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::type(),
+            typename std::is_nothrow_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >::type()
+        )
+    {
+    }
+
+    template<
+        typename D,
+        typename = typename std::enable_if< detail::conjunction<
+            std::is_constructible< resource_holder, result_of_make_default >,
+            std::is_constructible< deleter_holder, D >
+        >::value >::type
+    >
+    explicit unique_resource_data(default_resource_t, D&& del)
+        noexcept(detail::conjunction<
+            std::is_nothrow_constructible< resource_holder, result_of_make_default >,
+            std::is_nothrow_constructible< deleter_holder, D >
+        >::value) :
+        resource_holder(traits_type::make_default()),
+        deleter_holder(static_cast< D&& >(del))
+    {
+    }
+
+    template<
+        typename R,
+        typename D,
+        typename = typename std::enable_if< detail::conjunction<
+            detail::negation< detail::is_default_resource< R > >,
+            std::is_constructible< resource_holder, R, D, bool >,
+            std::is_constructible< deleter_holder, D, resource_type&, bool >
+        >::value >::type
+    >
+    explicit unique_resource_data(R&& res, D&& del)
+        noexcept(detail::conjunction<
+            std::is_nothrow_constructible< resource_holder, R, D, bool >,
+            std::is_nothrow_constructible< deleter_holder, D, resource_type&, bool >
+        >::value) :
+        unique_resource_data(static_cast< R&& >(res), static_cast< D&& >(del), traits_type::is_allocated(res)) // don't forward res to is_allocated to make sure res is not moved-from on resource construction
+    {
+        // Since res may not be of the resource type, the is_allocated call made above may require a type conversion or pick a different overload.
+        // We still require it to be noexcept, as we need to know whether we should deallocate it. Otherwise we may leak the resource.
+        static_assert(noexcept(traits_type::is_allocated(res)), "Invalid unique_resource resource traits: is_allocated must be noexcept");
+    }
+
+    template<
+        bool Requires = detail::conjunction<
+            std::is_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >,
+            std::is_assignable< internal_deleter_type&, typename detail::move_or_copy_assign_ref< deleter_type >::type >
+        >::value
+    >
+    typename std::enable_if< Requires, unique_resource_data& >::type operator= (unique_resource_data&& that)
+        noexcept(detail::conjunction<
+            std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >,
+            std::is_nothrow_assignable< internal_deleter_type&, typename detail::move_or_copy_assign_ref< deleter_type >::type >
+        >::value)
+    {
+        assign(static_cast< unique_resource_data&& >(that), typename std::is_nothrow_move_assignable< internal_deleter_type >::type());
+        return *this;
+    }
+
+    resource_type& get_resource() noexcept
+    {
+        return resource_holder::get();
+    }
+
+    resource_type const& get_resource() const noexcept
+    {
+        return resource_holder::get();
+    }
+
+    internal_resource_type& get_internal_resource() noexcept
+    {
+        return resource_holder::get_internal();
+    }
+
+    internal_resource_type const& get_internal_resource() const noexcept
+    {
+        return resource_holder::get_internal();
+    }
+
+    deleter_type& get_deleter() noexcept
+    {
+        return deleter_holder::get();
+    }
+
+    deleter_type const& get_deleter() const noexcept
+    {
+        return deleter_holder::get();
+    }
+
+    internal_deleter_type& get_internal_deleter() noexcept
+    {
+        return deleter_holder::get_internal();
+    }
+
+    internal_deleter_type const& get_internal_deleter() const noexcept
+    {
+        return deleter_holder::get_internal();
+    }
+
+    bool is_allocated() const noexcept
+    {
+        return traits_type::is_allocated(get_resource());
+    }
+
+    void set_unallocated() noexcept
+    {
+        get_internal_resource() = traits_type::make_default();
+    }
+
+    template< typename R >
+    void assign_resource(R&& res) noexcept(std::is_nothrow_assignable< internal_resource_type&, R >::value)
+    {
+        get_internal_resource() = static_cast< R&& >(res);
+    }
+
+    template<
+        bool Requires = detail::conjunction<
+            detail::is_swappable< internal_resource_type >,
+            detail::is_swappable< internal_deleter_type >,
+            detail::disjunction<
+                detail::is_nothrow_swappable< internal_resource_type >,
+                detail::is_nothrow_swappable< internal_deleter_type >
+            >
+        >::value
+    >
+    typename std::enable_if< Requires >::type swap(unique_resource_data& that)
+        noexcept(detail::conjunction< detail::is_nothrow_swappable< internal_resource_type >, detail::is_nothrow_swappable< internal_deleter_type > >::value)
+    {
+        swap_impl
+        (
+            that,
+            std::integral_constant< bool, detail::is_nothrow_swappable< internal_resource_type >::value >(),
+            std::integral_constant< bool, detail::conjunction<
+                detail::is_nothrow_swappable< internal_resource_type >,
+                detail::is_nothrow_swappable< internal_deleter_type >
+            >::value >()
+        );
+    }
+
+private:
+    unique_resource_data(unique_resource_data&& that, std::true_type, std::true_type) noexcept :
+        resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
+        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()))
+    {
+        that.set_unallocated();
+    }
+
+    unique_resource_data(unique_resource_data&& that, std::false_type, std::true_type) :
+        resource_holder(static_cast< resource_type const& >(that.get_resource())),
+        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()))
+    {
+        that.set_unallocated();
+    }
+
+    unique_resource_data(unique_resource_data&& that, std::true_type, std::false_type) try :
+        resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
+        deleter_holder(static_cast< deleter_type const& >(that.get_deleter()))
+    {
+        that.set_unallocated();
+    }
+    catch (...)
+    {
+        // Since only the deleter's constructor could have thrown an exception here, move the resource back
+        // to the original unique_resource. This is guaranteed to not throw.
+        that.resource_holder::move_from(static_cast< internal_resource_type&& >(get_internal_resource()));
+    }
+
+    unique_resource_data(unique_resource_data&& that, std::false_type, std::false_type) :
+        resource_holder(static_cast< resource_type const& >(that.get_resource())),
+        deleter_holder(static_cast< deleter_type const& >(that.get_deleter()))
+    {
+        that.set_unallocated();
+    }
+
+    template<
+        typename R,
+        typename D,
+        typename = typename std::enable_if< detail::conjunction<
+            std::is_constructible< resource_holder, R, D, bool >,
+            std::is_constructible< deleter_holder, D, resource_type&, bool >
+        >::value >::type
+    >
+    explicit unique_resource_data(R&& res, D&& del, bool allocated)
+        noexcept(detail::conjunction<
+            std::is_nothrow_constructible< resource_holder, R, D, bool >,
+            std::is_nothrow_constructible< deleter_holder, D, resource_type&, bool >
+        >::value) :
+        resource_holder(static_cast< R&& >(res), static_cast< D&& >(del), allocated),
+        deleter_holder(static_cast< D&& >(del), resource_holder::get(), allocated)
+    {
+    }
+
+    void assign(unique_resource_data&& that, std::true_type)
+        noexcept(std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >::value)
+    {
+        get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
+        get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
+
+        that.set_unallocated();
+    }
+
+    void assign(unique_resource_data&& that, std::false_type)
+    {
+        get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
+        get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
+
+        that.set_unallocated();
+    }
+
+    void swap_impl(unique_resource_data& that, std::true_type, std::true_type) noexcept
+    {
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
+    }
+
+    void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
+    {
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
+    }
+
+    void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
+    {
+        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
+        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
+    }
+};
+
+template< typename Resource, typename Deleter >
+class unique_resource_data< Resource, Deleter, void > :
+    public detail::resource_holder< Resource, use_resource_compact_storage< Resource, Deleter >::value >,
+    public detail::deleter_holder< Resource, Deleter >
+{
+public:
+    using resource_type = Resource;
+    using deleter_type = Deleter;
+    using traits_type = void;
+
+private:
+    using resource_holder = detail::resource_holder< resource_type, use_resource_compact_storage< resource_type, deleter_type >::value >;
+    using deleter_holder = detail::deleter_holder< resource_type, deleter_type >;
+
+public:
+    using internal_resource_type = typename resource_holder::internal_resource_type;
     using internal_deleter_type = typename deleter_holder::internal_deleter_type;
 
 private:
@@ -844,269 +990,6 @@ private:
     }
 };
 
-template< typename Resource, typename Deleter, typename Traits >
-class unique_resource_data< Resource, Deleter, Traits, true > :
-    public detail::resource_holder< Resource, Traits, use_resource_compact_storage< Resource, Deleter >::value >,
-    public detail::deleter_holder< Resource, Deleter >
-{
-public:
-    using resource_type = Resource;
-    using deleter_type = Deleter;
-    using traits_type = Traits;
-    using resource_holder = detail::resource_holder< resource_type, traits_type, use_resource_compact_storage< resource_type, deleter_type >::value >;
-    using internal_resource_type = typename resource_holder::internal_resource_type;
-    using deleter_holder = detail::deleter_holder< resource_type, deleter_type >;
-    using internal_deleter_type = typename deleter_holder::internal_deleter_type;
-
-public:
-    template<
-        bool Requires = detail::conjunction< std::is_default_constructible< resource_holder >, std::is_default_constructible< deleter_holder > >::value,
-        typename = typename std::enable_if< Requires >::type
-    >
-    constexpr unique_resource_data()
-        noexcept(detail::conjunction< std::is_nothrow_default_constructible< resource_holder >, std::is_nothrow_default_constructible< deleter_holder > >::value) :
-        resource_holder(),
-        deleter_holder()
-    {
-    }
-
-    unique_resource_data(unique_resource_data const&) = delete;
-    unique_resource_data& operator= (unique_resource_data const&) = delete;
-
-    unique_resource_data(unique_resource_data&& that)
-        noexcept(detail::conjunction<
-            std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >,
-            std::is_nothrow_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >
-        >::value) :
-        unique_resource_data
-        (
-            static_cast< unique_resource_data&& >(that),
-            typename std::is_nothrow_constructible< internal_resource_type, typename detail::move_or_copy_construct_ref< resource_type >::type >::type(),
-            typename std::is_nothrow_constructible< internal_deleter_type, typename detail::move_or_copy_construct_ref< deleter_type >::type >::type()
-        )
-    {
-    }
-
-    template<
-        typename D,
-        typename = typename std::enable_if< detail::conjunction<
-            std::is_default_constructible< resource_holder >,
-            std::is_constructible< deleter_holder, D >
-        >::value >::type
-    >
-    explicit unique_resource_data(default_resource_t, D&& del)
-        noexcept(detail::conjunction<
-            std::is_nothrow_default_constructible< resource_holder >,
-            std::is_nothrow_constructible< deleter_holder, D >
-        >::value) :
-        resource_holder(),
-        deleter_holder(static_cast< D&& >(del))
-    {
-    }
-
-    template<
-        typename R,
-        typename D,
-        typename = typename std::enable_if< detail::conjunction<
-            detail::negation< detail::is_default_resource< R > >,
-            std::is_constructible< resource_holder, R, D, bool >,
-            std::is_constructible< deleter_holder, D, resource_type&, bool >
-        >::value >::type
-    >
-    explicit unique_resource_data(R&& res, D&& del)
-        noexcept(detail::conjunction<
-            std::is_nothrow_constructible< resource_holder, R, D, bool >,
-            std::is_nothrow_constructible< deleter_holder, D, resource_type&, bool >
-        >::value) :
-        unique_resource_data(static_cast< R&& >(res), static_cast< D&& >(del), traits_type::is_allocated(res)) // don't forward res to is_allocated to make sure res is not moved-from on resource construction
-    {
-    }
-
-    template<
-        bool Requires = detail::conjunction<
-            std::is_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >,
-            std::is_assignable< internal_deleter_type&, typename detail::move_or_copy_assign_ref< deleter_type >::type >
-        >::value
-    >
-    typename std::enable_if< Requires, unique_resource_data& >::type operator= (unique_resource_data&& that)
-        noexcept(detail::conjunction<
-            std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >,
-            std::is_nothrow_assignable< internal_deleter_type&, typename detail::move_or_copy_assign_ref< deleter_type >::type >
-        >::value)
-    {
-        assign(static_cast< unique_resource_data&& >(that), typename std::is_nothrow_move_assignable< internal_deleter_type >::type());
-        return *this;
-    }
-
-    resource_type& get_resource() noexcept
-    {
-        return resource_holder::get();
-    }
-
-    resource_type const& get_resource() const noexcept
-    {
-        return resource_holder::get();
-    }
-
-    internal_resource_type& get_internal_resource() noexcept
-    {
-        return resource_holder::get_internal();
-    }
-
-    internal_resource_type const& get_internal_resource() const noexcept
-    {
-        return resource_holder::get_internal();
-    }
-
-    deleter_type& get_deleter() noexcept
-    {
-        return deleter_holder::get();
-    }
-
-    deleter_type const& get_deleter() const noexcept
-    {
-        return deleter_holder::get();
-    }
-
-    internal_deleter_type& get_internal_deleter() noexcept
-    {
-        return deleter_holder::get_internal();
-    }
-
-    internal_deleter_type const& get_internal_deleter() const noexcept
-    {
-        return deleter_holder::get_internal();
-    }
-
-    bool is_allocated() const noexcept
-    {
-        return traits_type::is_allocated(get_resource());
-    }
-
-    void set_unallocated() noexcept
-    {
-        get_internal_resource() = traits_type::make_default();
-    }
-
-    template< typename R >
-    void assign_resource(R&& res) noexcept(std::is_nothrow_assignable< internal_resource_type&, R >::value)
-    {
-        get_internal_resource() = static_cast< R&& >(res);
-    }
-
-    template<
-        bool Requires = detail::conjunction<
-            detail::is_swappable< internal_resource_type >,
-            detail::is_swappable< internal_deleter_type >,
-            detail::disjunction<
-                detail::is_nothrow_swappable< internal_resource_type >,
-                detail::is_nothrow_swappable< internal_deleter_type >
-            >
-        >::value
-    >
-    typename std::enable_if< Requires >::type swap(unique_resource_data& that)
-        noexcept(detail::conjunction< detail::is_nothrow_swappable< internal_resource_type >, detail::is_nothrow_swappable< internal_deleter_type > >::value)
-    {
-        swap_impl
-        (
-            that,
-            std::integral_constant< bool, detail::is_nothrow_swappable< internal_resource_type >::value >(),
-            std::integral_constant< bool, detail::conjunction<
-                detail::is_nothrow_swappable< internal_resource_type >,
-                detail::is_nothrow_swappable< internal_deleter_type >
-            >::value >()
-        );
-    }
-
-private:
-    unique_resource_data(unique_resource_data&& that, std::true_type, std::true_type) noexcept :
-        resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
-        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()))
-    {
-        that.set_unallocated();
-    }
-
-    unique_resource_data(unique_resource_data&& that, std::false_type, std::true_type) :
-        resource_holder(static_cast< resource_type const& >(that.get_resource())),
-        deleter_holder(static_cast< typename detail::move_or_copy_construct_ref< deleter_type >::type >(that.get_deleter()))
-    {
-        that.set_unallocated();
-    }
-
-    unique_resource_data(unique_resource_data&& that, std::true_type, std::false_type) try :
-        resource_holder(static_cast< typename detail::move_or_copy_construct_ref< resource_type >::type >(that.get_resource())),
-        deleter_holder(static_cast< deleter_type const& >(that.get_deleter()))
-    {
-        that.set_unallocated();
-    }
-    catch (...)
-    {
-        // Since only the deleter's constructor could have thrown an exception here, move the resource back
-        // to the original unique_resource. This is guaranteed to not throw.
-        that.resource_holder::move_from(static_cast< internal_resource_type&& >(get_internal_resource()));
-    }
-
-    unique_resource_data(unique_resource_data&& that, std::false_type, std::false_type) :
-        resource_holder(static_cast< resource_type const& >(that.get_resource())),
-        deleter_holder(static_cast< deleter_type const& >(that.get_deleter()))
-    {
-        that.set_unallocated();
-    }
-
-    template<
-        typename R,
-        typename D,
-        typename = typename std::enable_if< detail::conjunction<
-            std::is_constructible< resource_holder, R, D, bool >,
-            std::is_constructible< deleter_holder, D, resource_type&, bool >
-        >::value >::type
-    >
-    explicit unique_resource_data(R&& res, D&& del, bool allocated)
-        noexcept(detail::conjunction<
-            std::is_nothrow_constructible< resource_holder, R, D, bool >,
-            std::is_nothrow_constructible< deleter_holder, D, resource_type&, bool >
-        >::value) :
-        resource_holder(static_cast< R&& >(res), static_cast< D&& >(del), allocated),
-        deleter_holder(static_cast< D&& >(del), resource_holder::get(), allocated)
-    {
-    }
-
-    void assign(unique_resource_data&& that, std::true_type)
-        noexcept(std::is_nothrow_assignable< internal_resource_type&, typename detail::move_or_copy_assign_ref< resource_type >::type >::value)
-    {
-        get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
-        get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
-
-        that.set_unallocated();
-    }
-
-    void assign(unique_resource_data&& that, std::false_type)
-    {
-        get_internal_deleter() = static_cast< typename detail::move_or_copy_assign_ref< deleter_type >::type >(that.get_deleter());
-        get_internal_resource() = static_cast< typename detail::move_or_copy_assign_ref< resource_type >::type >(that.get_resource());
-
-        that.set_unallocated();
-    }
-
-    void swap_impl(unique_resource_data& that, std::true_type, std::true_type) noexcept
-    {
-        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-    }
-
-    void swap_impl(unique_resource_data& that, std::true_type, std::false_type)
-    {
-        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-    }
-
-    void swap_impl(unique_resource_data& that, std::false_type, std::false_type)
-    {
-        boost::core::invoke_swap(get_internal_resource(), that.get_internal_resource());
-        boost::core::invoke_swap(get_internal_deleter(), that.get_internal_deleter());
-    }
-};
-
 template< typename T >
 struct is_dereferenceable_impl
 {
@@ -1222,14 +1105,6 @@ struct dereference_traits< T, true >
  * unallocated state (the deleter will not be called on unallocated resource
  * values).
  * 
- * `unique_resource` also supports a "reduced" form of resource traits, where
- * the traits only provide a `R make_default()` public static member function, where
- * `std::is_constructible< Resource, R >::value` is \c true. In this case,
- * `unique_resource` will use `make_default` in its default constructor to
- * initialize the stored resource object, but will otherwise behave as if no
- * resource traits were specified. In particular, `unique_resource` will not
- * distinguish between allocated and unallocated wrapped resource values.
- *
  * \tparam Resource Resource type.
  * \tparam Deleter Resource deleter function object type.
  * \tparam Traits Optional resource traits type.

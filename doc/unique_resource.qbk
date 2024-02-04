@@ -289,14 +289,6 @@ will only be called if `open` succeeded.
 [tip The `fd_deleter`, `fd_resource_traits` and `unique_fd` types presented in the examples above are provided by the library out of
 the box in [boost_scope_fd_resource_hpp] and [boost_scope_unique_fd_hpp] headers.]
 
-[class_scope_unique_resource] also supports a reduced form of resource traits consisting of only the `R make_default()` public static
-member function, where `std::is_constructible< Resource, R >::value` is `true`. If resource traits are of this reduced form,
-[class_scope_unique_resource] will use the `make_default` function to initialize the resource value in [class_scope_unique_resource]
-default constructor, but otherwise will behave as if no resource traits were specified. In particular, [class_scope_unique_resource]
-will not distinguish between allocated and unallocated wrapped resource values. This mode of operation may be useful in cases when the
-resource type is not default-constructible, but there is a way to create an unallocated resource value that would allow
-[class_scope_unique_resource] to be default-constructible.
-
 [endsect]
 
 [section:simplified_resource_traits Simplified resource traits]
