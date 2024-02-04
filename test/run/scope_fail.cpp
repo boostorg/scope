@@ -12,14 +12,6 @@
  * \brief  This file contains tests for \c scope_fail.
  */
 
-#if defined(_MSC_VER) && !defined(__clang__)
-// warning C4702: unreachable code
-// This warning is triggered by tests that unconditionally throw exception at some point
-// and have code after that (e.g. parts of scope guard constructor and a check that verifies
-// that the following code is not reached).
-#pragma warning(disable: 4702)
-#endif
-
 #include <boost/scope/scope_fail.hpp>
 #include <boost/scope/error_code_checker.hpp>
 #include <boost/core/lightweight_test.hpp>
@@ -29,6 +21,14 @@
 #include <stdexcept>
 #include <system_error>
 #include "function_types.hpp"
+
+#if defined(_MSC_VER) && !defined(__clang__)
+// warning C4702: unreachable code
+// This warning is triggered by tests that unconditionally throw exception at some point
+// and have code after that (e.g. parts of scope guard constructor and a check that verifies
+// that the following code is not reached).
+#pragma warning(disable: 4702)
+#endif
 
 int g_n = 0, g_c = 0;
 
