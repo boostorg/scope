@@ -543,12 +543,12 @@ for any resource types that support dereferencing.
             {
             }
 
-            my_object_list::iterator operator-> () noexcept  /*< The operator relies on `operator->` chaining. >*/
+            my_object_list::iterator operator-> () const noexcept  /*< The operator relies on `operator->` chaining. >*/
             {
                 return m_it;
             }
 
-            my_object& operator* () noexcept
+            my_object& operator* () const noexcept
             {
                 return *m_it;
             }
