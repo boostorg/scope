@@ -23,6 +23,8 @@
 #pragma warning(disable: 4180)
 // qualifier applied to reference type; ignored
 #pragma warning(disable: 4181)
+// unreachable code
+#pragma warning(disable: 4702)
 // destructor never returns, potential memory leak
 #pragma warning(disable: 4722)
 
