@@ -226,16 +226,16 @@ be a class type with the following public static member functions:
   Resource&, R >::value` is `true` and constructing `Resource` from `R` produces an unallocated resource value that can be used to initialize
   the default-constructed [class_scope_unique_resource] object.
 
-Note that all listed operations must be non-throwing. Given these definitions, calling `is_allocated` on the value returned by `make_default`
-must always return `false`.
+Note that all listed member functions must be non-throwing. Given these definitions, calling `is_allocated` on the value returned by
+`make_default` must always return `false`.
 
 When the conforming resource traits are provided, [class_scope_unique_resource] behavior changes as follows:
 
 * [class_scope_unique_resource] will no longer separately track whether it is in allocated state or not and instead will use `is_allocated`
   on the wrapped resource value for this. In particular, this means that constructing [class_scope_unique_resource] from a resource value
-  may now produce a wrapper in an unallocated state, if the resource value is an unallocated value.
-* Default constructor, `reset`, move constructor and move assignment of [class_scope_unique_resource] will use `make_default` to initialize
-  the resource value in the unallocated wrapper (for move operations - in the move source).
+  or calling `reset` with a resource value may now produce a wrapper in an unallocated state, if the resource value is an unallocated value.
+* Default constructor, `reset` with no arguments, move constructor and move assignment of [class_scope_unique_resource] will use `make_default`
+  to initialize the resource value in the unallocated wrapper (for move operations - in the move source).
 
 Using the resource traits allow us to further improve the example given in the previous section. Again, our primary interest is `open_file`
 and `unique_resource` type usage, the rest of `equal_files` implementation remains unchanged.
@@ -302,16 +302,17 @@ when the resource satisfies the following constraints:
 * Resource values are allowed to be specified as [@https://en.cppreference.com/w/cpp/language/template_parameters non-type template parameters]
   in C++. The exact set of types that meet this requirement depends on the C++ standard version being used. For example, integers, enumerations,
   pointers and lvalue references are generally supported.
-* There is one or more unallocated resource values that can be individually listed. Every other resource value represents an allocated resource
-  that needs to be freed.
+* There is one or more unallocated resource values that can be individually listed. All other resource values represent allocated resources
+  that need to be freed.
 * One of these unallocated resource values is considered the default.
-* Resource type supports move construction and assignment, as well as comparison for equality and inequality, and none of these operations throw
-  exceptions.
+* Resource type supports move construction and assignment from the default value, as well as comparison for equality and inequality with
+  unallocated values, and none of these operations throw exceptions.
 
 When the above requirements are met, one can specify the unallocated resource values as non-type template parameters of `unallocated_resource` to
 generate resource traits for `unique_resource`. The first of the listed unallocated values is the default.
 
-For example, let's consider resource traits definition for Windows [@https://learn.microsoft.com/en-us/windows/win32/sysinfo/handles-and-objects handles].
+For example, let's consider resource traits definition for Windows [@https://learn.microsoft.com/en-us/windows/win32/sysinfo/handles-and-objects
+handles].
 
     struct handle_traits
     {
@@ -329,9 +330,9 @@ For example, let's consider resource traits definition for Windows [@https://lea
     };
 
 Here, `INVALID_HANDLE_VALUE` is a special constant returned by some Windows API functions that indicates no allocated resource associated with
-the handle. However, other functions, like [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess `OpenProcess`]
-or [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openthread `OpenThread`] for example, return
-a `NULL` handle in case of errors, and we have to test for that value as well.
+the handle. However, other functions, like [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocess
+`OpenProcess`] or [@https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openthread `OpenThread`] for example,
+return a `NULL` handle in case of errors, and we have to test for that value as well.
 
 [tip For the curious readers, there is an [@https://devblogs.microsoft.com/oldnewthing/20040302-00/?p=40443 article] describing reasons for this
 inconsistency between different Windows APIs.]
@@ -378,6 +379,12 @@ to use `make_unique_resource_checked` like so:
 
     std::experimental::unique_resource< int, int (*)(int) > fd = std::experimental::make_unique_resource_checked(-1, -1, &close);
 
+Alternatively, one can call `release` immediately after constructing the `unique_resource`. Although it should be noted that this approach
+is only valid if it is known that `unique_resource` construction cannot throw.
+
+    std::experimental::unique_resource< int, int (*)(int) > fd(-1, &close);
+    fd.release(); // mark the resource unallocated
+
 A similar problem exists with the `reset` member function.
 
     fd.reset(-1);
@@ -409,8 +416,8 @@ the resource type is not default-constructible (for example, if it is a referenc
 value. For example, [class_scope_fd_resource_traits] specifies -1 as the default value for POSIX file descriptors because the value of 0 is a
 valid allocated file descriptor.
 
-There is no direct replacement for this feature the Library Fundamentals TS, although `make_unique_resource_checked` can be used to work around
-the limitation in some cases, as shown above.
+There is no direct replacement for this feature the Library Fundamentals TS, although `make_unique_resource_checked` and `release` can be used
+to work around the limitation in some cases, as shown above.
 
 [endsect]
 
@@ -510,35 +517,101 @@ Library Fundamentals TS `unique_resource` supports `operator*()` and `operator->
 for any resource types that support dereferencing.
 
     // Resource object type
-    struct my_resource
+    struct my_object
     {
         void foo();
     };
 
-    // Pointer type returned by resource allocation function
-    struct my_ptr
+    // Manager for my_object instances
+    class my_object_manager
     {
-        my_resource& operator* () const noexcept;
-        my_resource* operator-> () const noexcept;
+    private:
+        // List of allocated objects
+        using my_object_list = std::list< my_object >;
+
+        // Resource handle that refers to a my_object element in the list
+        class my_handle
+        {
+        private:
+            my_object_list* m_list;
+            my_object_list::iterator m_it;
+
+        public:
+            my_handle() noexcept : m_list(nullptr), m_it() {}
+            explicit my_handle(my_object_list& list, my_object_list::iterator it) noexcept :
+                m_list(&list), m_it(it)
+            {
+            }
+
+            my_object_list::iterator operator-> () noexcept  /*< The operator relies on `operator->` chaining. >*/
+            {
+                return m_it;
+            }
+
+            my_object& operator* () noexcept
+            {
+                return *m_it;
+            }
+
+            my_object_list* get_list() const noexcept
+            {
+                return m_list;
+            }
+
+            my_object_list::iterator get_iterator() const noexcept
+            {
+                return m_it;
+            }
+        };
+
+        // Resource deleter
+        struct my_handle_deleter
+        {
+            void operator() (my_handle const& res) const noexcept
+            {
+                res.get_list()->erase(res.get_iterator());
+            }
+        };
+
+        // Resource traits
+        struct my_handle_traits
+        {
+            static my_handle make_default() noexcept
+            {
+                return my_handle();
+            }
+
+            static bool is_allocated(my_handle const& res) noexcept
+            {
+                return res.get_list() != nullptr && res.get_iterator() != res.get_list()->end();
+            }
+        };
+
+    public:
+        // Unique resource wrapper for my_object instances
+        using my_object_handle = boost::scope::unique_resource< my_handle, my_handle_deleter, my_handle_traits >;
+
+    private:
+        my_object_list m_objects;
+
+    public:
+        // Allocates a new object and returns a handle to it
+        my_object_handle allocate_object()
+        {
+            return my_object_handle(my_handle(m_objects, m_objects.insert(m_objects.end(), my_object())));
+        }
     };
 
-    // Resource allocation function
-    my_ptr allocate_resource();
-    // Resource freeing function
-    void free_resource(my_ptr p) noexcept;
-
-    // Resource traits for unique_resource
-    struct my_ptr_traits
+    void allocate_and_use_object(my_object_manager& mgr)
     {
-        static my_ptr make_default() noexcept { return my_ptr(); }
-        static bool is_allocated(my_ptr const& res) noexcept { return res != my_ptr(); }
-    };
+        my_object_manager::my_object_handle handle = mgr.allocate_object();
+        if (handle)
+            handle->foo(); // invokes my_object::foo on the allocated object
+    }
 
-    boost::scope::unique_resource< my_ptr, boost::core::functor< free_resource >, my_ptr_traits > res(allocate_resource());
-    if (res)
-        res->foo(); // invokes my_resource::foo on the allocated resource object
-
-[tip __boost_core_functor__ is provided by __boost_core__.]
+In the above example we're using `unique_resource` to reference objects created and maintained by `my_object_manager`. The `my_handle` class
+is the resource type and supports accessing `my_object` members through `operator->` and `operator*`. This enables `operator->` and `operator*`
+in `unique_resource`, which allows the code that uses `unique_resource` to access `my_object` members.
 
 With Library Fundamentals TS `unique_resource`, this is possible to emulate by accessing the stored resource object via the `unique_resource::get`
 accessor and dereferencing that.
