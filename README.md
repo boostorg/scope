@@ -1,48 +1,14 @@
 # Boost.Scope
 
-Boost.Scope provides a number of scope guard utilities described in [C++ Extensions for Library Fundamentals, Version 3](https://github.com/cplusplus/fundamentals-ts/releases/tag/n4908), Section 3.3 Scope guard support \[scopeguard\]. The implementation also provides a few non-standard extensions.
-
-This library is currently proposed for review and potential inclusion into [Boost](https://www.boost.org/).
+Boost.Scope provides a number of scope guard utilities and a `unique_resource` wrapper, similar to those described in
+[C++ Extensions for Library Fundamentals, Version 3](https://github.com/cplusplus/fundamentals-ts/releases/tag/n4908),
+Section 3.3 Scope guard support \[scopeguard\]. The implementation also provides a few non-standard extensions.
 
 ### Directories
 
 * **doc** - QuickBook documentation sources
 * **include** - Interface headers of Boost.Scope
 * **test** - Boost.Scope unit tests
-
-### Installation
-
-#### Using Conan
-
-````
-git clone https://github.com/Lastique/scope
-conan create scope/conan --build missing
-````
-
-This will build a boost_scope package using your default profile and put it
-in the local Conan cache along with all direct and transitive dependencies.
-Since Scope only depends on a few header-only Boost libraries, you can
-save some time by requesting header-only Boost:
-
-```
-conan create scope/conan -o 'boost*:header_only=True' --build missing
-````
-Following one of those approaches you can use the package as usual. For
-example, using a `conanfile.txt`:
-```
-[requires]
-boost_scope/1.0.0
-````
-
-#### Using vcpkg
-
-````
-git clone https://github.com/Lastique/scope
-vcpkg install boost-scope --overlay-ports=scope/vcpkg/ports/boost-scope
-````
-
-This will install Scope and all the required Boost packages if they were not
-already installed.
 
 ### More information
 
