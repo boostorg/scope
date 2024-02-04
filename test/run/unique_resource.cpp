@@ -24,7 +24,7 @@
 template< typename Resource >
 struct empty_resource_deleter
 {
-    void operator() (Resource const& res) const noexcept
+    void operator() (Resource const&) const noexcept
     {
     }
 };

@@ -1,4 +1,4 @@
-# Copyright 2023 Andrey Semashev
+# Copyright 2023-2024 Andrey Semashev
 #
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE_1_0.txt or copy at
@@ -38,6 +38,9 @@ project
             cxx11_unified_initialization_syntax
             cxx11_hdr_system_error
         ]
+
+        <target-os>windows:<define>_CRT_SECURE_NO_WARNINGS
+        <target-os>windows:<define>_CRT_SECURE_NO_DEPRECATE
     ;
 
 # this rule enumerates through all the sources and invokes
@@ -75,7 +78,12 @@ rule test_all
     }
     for file in [ glob run/*.cpp ]
     {
-        all_rules += [ run $(file) ] ;
+        all_rules += [ run $(file) : : :
+            <warnings>extra
+            <toolset>msvc:<warnings-as-errors>on
+            <toolset>clang:<warnings-as-errors>on
+            <toolset>gcc:<warnings-as-errors>on
+        ] ;
     }
 
     #ECHO All rules: $(all_rules) ;
