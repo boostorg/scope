@@ -29,10 +29,13 @@
 #if defined(_MSC_VER) && defined(_CPPLIB_VER)
 #include <cstdlib>
 #include <crtdbg.h>
+#include <boost/scope/detail/header.hpp>
 
 void noop_invalid_parameter(const wchar_t* expression, const wchar_t* function, const wchar_t* file, unsigned int line, uintptr_t pReserved)
 {
 }
+
+#include <boost/scope/detail/footer.hpp>
 #endif // defined(_MSC_VER) && defined(_CPPLIB_VER)
 
 #if defined(BOOST_WINDOWS)
