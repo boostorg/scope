@@ -609,7 +609,7 @@ for any resource types that support dereferencing.
             handle->foo(); // invokes my_object::foo on the allocated object
     }
 
-In the above example we're using `unique_resource` to reference objects created and maintained by `my_object_manager`. The `my_handle` class
+In the above example, we're using `unique_resource` to reference objects created and maintained by `my_object_manager`. The `my_handle` class
 is the resource type and supports accessing `my_object` members through `operator->` and `operator*`. This enables `operator->` and `operator*`
 in `unique_resource`, which allows the code that uses `unique_resource` to access `my_object` members.
 
