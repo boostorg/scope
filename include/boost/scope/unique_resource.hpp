@@ -653,7 +653,7 @@ private:
     {
         // Since only the deleter's constructor could have thrown an exception here, move the resource back
         // to the original unique_resource. This is guaranteed to not throw.
-        that.resource_holder::move_from(static_cast< internal_resource_type&& >(get_internal_resource()));
+        that.resource_holder::move_from(static_cast< internal_resource_type&& >(resource_holder::get_internal()));
     }
 
     unique_resource_data(unique_resource_data&& that, std::false_type, std::false_type) :
@@ -938,7 +938,7 @@ private:
     {
         // Since only the deleter's constructor could have thrown an exception here, move the resource back
         // to the original unique_resource. This is guaranteed to not throw.
-        that.resource_holder::move_from(static_cast< internal_resource_type&& >(get_internal_resource()));
+        that.resource_holder::move_from(static_cast< internal_resource_type&& >(resource_holder::get_internal()));
     }
 
     unique_resource_data(unique_resource_data&& that, std::false_type, std::false_type) :
