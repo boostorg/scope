@@ -284,7 +284,7 @@ jobs:
             cmake_tests: 1
             os: ubuntu-20.04
 
-    timeout-minutes: 60
+    timeout-minutes: 15
     runs-on: ${{matrix.os}}
     container: ${{matrix.container}}
 
@@ -541,7 +541,7 @@ jobs:
             addrmd: 64
             os: windows-2019
 
-    timeout-minutes: 60
+    timeout-minutes: 15
     runs-on: ${{matrix.os}}
 
     steps:
