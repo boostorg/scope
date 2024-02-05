@@ -442,7 +442,8 @@ jobs:
             cd ..
             git clone -b "$BOOST_BRANCH" --depth 1 "https://github.com/boostorg/boost.git" "boost-root"
             cd boost-root
-            mkdir -p libs
+            [ -d libs ] || mkdir -p libs
+            rm -rf "libs/$LIBRARY"
             mv -f "../snapshot/${LIBRARY}-${GITHUB_SHA}" "libs/$LIBRARY"
             rm -rf "../snapshot"
             git submodule update --init tools/boostdep
@@ -571,7 +572,8 @@ jobs:
             cd ..
             git clone -b %BOOST_BRANCH% --depth 1 https://github.com/boostorg/boost.git boost-root
             cd boost-root
-            mkdir libs
+            if not exist "libs\" mkdir libs
+            rmdir /s /q "libs\%LIBRARY%"
             move /Y "..\snapshot\%LIBRARY%-%GITHUB_SHA%" "libs\%LIBRARY%"
             rmdir /s /q "..\snapshot"
             git submodule update --init tools/boostdep
