@@ -1,4 +1,4 @@
-# Copyright 2023 Andrey Semashev
+# Copyright 2023-2024 Andrey Semashev
 #
 # Distributed under the Boost Software License, Version 1.0.
 # https://www.boost.org/LICENSE_1_0.txt
@@ -313,8 +313,6 @@ jobs:
             fi
             git config --global pack.threads 0
 
-      - uses: actions/checkout@v3
-
       - name: Install packages
         if: matrix.install
         run: |
@@ -429,11 +427,23 @@ jobs:
             then
                 DEPINST_ARGS+=("--git_args" "--jobs $GIT_FETCH_JOBS")
             fi
+            mkdir -p snapshot
+            cd snapshot
+            echo "Downloading library snapshot: https://github.com/${GITHUB_REPOSITORY}/archive/${GITHUB_SHA}.tar.gz"
+            curl -L --retry "$NET_RETRY_COUNT" -o "${LIBRARY}-${GITHUB_SHA}.tar.gz" "https://github.com/${GITHUB_REPOSITORY}/archive/${GITHUB_SHA}.tar.gz"
+            tar -xf "${LIBRARY}-${GITHUB_SHA}.tar.gz"
+            if [ ! -d "${LIBRARY}-${GITHUB_SHA}" ]
+            then
+                echo "Library snapshot does not contain the library directory ${LIBRARY}-${GITHUB_SHA}:"
+                ls -la
+                exit 1
+            fi
+            rm -f "${LIBRARY}-${GITHUB_SHA}.tar.gz"
             cd ..
             git clone -b "$BOOST_BRANCH" --depth 1 "https://github.com/boostorg/boost.git" "boost-root"
             cd boost-root
-            mkdir -p libs/$LIBRARY
-            cp -r $GITHUB_WORKSPACE/* libs/$LIBRARY
+            mkdir -p libs
+            mv -f "../snapshot/${LIBRARY}-${GITHUB_SHA}" "libs/$LIBRARY"
             git submodule update --init tools/boostdep
             DEPINST_ARGS+=("$LIBRARY")
             python tools/boostdep/depinst/depinst.py "${DEPINST_ARGS[@]}"
@@ -455,7 +465,7 @@ jobs:
       - name: Run tests
         if: matrix.cmake_tests == ''
         run: |
-            cd ../boost-root
+            cd boost-root
             if [ -z "${{matrix.extra_tests}}" ]
             then
                 export BOOST_SCOPE_TEST_WITHOUT_SELF_CONTAINED_HEADER_TESTS=1
@@ -490,7 +500,7 @@ jobs:
       - name: Build CMake tests
         if: matrix.cmake_tests
         run: |
-            cd ../boost-root
+            cd boost-root
             mkdir __build_static__ && cd __build_static__
             cmake -DBOOST_INCLUDE_LIBRARIES=$LIBRARY -DBUILD_TESTING=ON ..
             cmake --build . --target tests -j $BUILD_JOBS
@@ -498,7 +508,7 @@ jobs:
       - name: Run CMake tests
         if: matrix.cmake_tests
         run: |
-            cd ../boost-root
+            cd boost-root
             cd __build_static__
             ctest --output-on-failure --no-tests=error
 
@@ -533,8 +543,6 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-      - uses: actions/checkout@v3
-
       - name: Setup Boost
         shell: cmd
         run: |
@@ -548,10 +556,22 @@ jobs:
             set BOOST_BRANCH=develop
             for /f %%i in ("%GITHUB_BASE_REF%") do if "%%~nxi" == "master" set BOOST_BRANCH=master
             echo BOOST_BRANCH: %BOOST_BRANCH%
+            mkdir snapshot
+            cd snapshot
+            echo Downloading library snapshot: https://github.com/%GITHUB_REPOSITORY%/archive/%GITHUB_SHA%.zip
+            curl -L --retry %NET_RETRY_COUNT% -o "%LIBRARY%-%GITHUB_SHA%.zip" "https://github.com/%GITHUB_REPOSITORY%/archive/%GITHUB_SHA%.zip"
+            tar -xf "%LIBRARY%-%GITHUB_SHA%.zip"
+            if not exist "%LIBRARY%-%GITHUB_SHA%\" (
+                echo Library snapshot does not contain the library directory %LIBRARY%-%GITHUB_SHA%:
+                dir
+                exit /b 1
+            )
+            del /f "%LIBRARY%-%GITHUB_SHA%.zip"
             cd ..
             git clone -b %BOOST_BRANCH% --depth 1 https://github.com/boostorg/boost.git boost-root
             cd boost-root
-            xcopy /s /e /q %GITHUB_WORKSPACE% libs\%LIBRARY%\
+            mkdir libs
+            move /Y "..\snapshot\%LIBRARY%-%GITHUB_SHA%" "libs\%LIBRARY%"
             git submodule update --init tools/boostdep
             python tools/boostdep/depinst/depinst.py --git_args "--jobs %GIT_FETCH_JOBS%" %LIBRARY%
             cmd /c bootstrap
@@ -560,7 +580,7 @@ jobs:
       - name: Run tests
         shell: cmd
         run: |
-            cd ../boost-root
+            cd boost-root
             if "${{matrix.extra_tests}}" == "" set BOOST_SCOPE_TEST_WITHOUT_SELF_CONTAINED_HEADER_TESTS=1
             if not "${{matrix.cxxstd}}" == "" set CXXSTD=cxxstd=${{matrix.cxxstd}}
             if not "${{matrix.addrmd}}" == "" set ADDRMD=address-model=${{matrix.addrmd}}
