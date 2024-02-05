@@ -444,6 +444,7 @@ jobs:
             cd boost-root
             mkdir -p libs
             mv -f "../snapshot/${LIBRARY}-${GITHUB_SHA}" "libs/$LIBRARY"
+            rm -rf "../snapshot"
             git submodule update --init tools/boostdep
             DEPINST_ARGS+=("$LIBRARY")
             python tools/boostdep/depinst/depinst.py "${DEPINST_ARGS[@]}"
@@ -572,6 +573,7 @@ jobs:
             cd boost-root
             mkdir libs
             move /Y "..\snapshot\%LIBRARY%-%GITHUB_SHA%" "libs\%LIBRARY%"
+            rmdir /s /q "..\snapshot"
             git submodule update --init tools/boostdep
             python tools/boostdep/depinst/depinst.py --git_args "--jobs %GIT_FETCH_JOBS%" %LIBRARY%
             cmd /c bootstrap
