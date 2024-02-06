@@ -296,6 +296,8 @@ with many more kinds of resource types, such as integers (e.g. POSIX file descri
 
             read_size += res;
         }
+
+        return 0;
     }
 
 [endsect]
