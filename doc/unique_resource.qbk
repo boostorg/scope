@@ -257,7 +257,7 @@ and `unique_resource` type usage, the rest of `equal_files` implementation remai
             return fd >= 0;
         }
 
-        static bool make_default() noexcept
+        static int make_default() noexcept
         {
             // Return any unallocated resource value
             return -1;
