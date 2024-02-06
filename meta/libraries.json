@@ -4,7 +4,7 @@
     "authors": [
         "Andrey Semashev"
     ],
-    "description": "Library of scope guards and unique_resource.",
+    "description": "A collection of scope guards and a unique_resource wrapper.",
     "category": [
         "Emulation",
         "Patterns"
