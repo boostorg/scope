@@ -279,13 +279,15 @@ thread has left the scope where the predicate was constructed (e.g. when the pre
 member or a namespace-scope variable).]
 
 [class_scope_scope_success] invokes its action when the condition returns `false` (i.e. when the failure is not detected) and
-[class_scope_scope_fail] - when the condition returns `true` (i.e. when the failure is detected).
+[class_scope_scope_fail] - when the condition returns `true` (i.e. when the failure is detected). In relation to these two scope guard types,
+the condition function object is sometimes called the failure condition because it indicates whether a failure has happened.
 
 You may notice that [class_scope_scope_exit] behavior (with a user-specified condition function object) is similar to [class_scope_scope_fail]
-and opposite to [class_scope_scope_success]. The main difference is a semantic one: [class_scope_scope_exit] does not have a success/failure
-connotation and may be used with arbitrary condition functions. On the other hand, [class_scope_scope_success] and [class_scope_scope_fail]
-typically correspond to their respective intended use cases, and the default condition function makes them equivalent to the scope guards
-defined in [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn `<experimental/scope>`].
+and opposite to [class_scope_scope_success] in terms of their usage of condition function objects. The main difference is a semantic one:
+[class_scope_scope_exit] does not have a success/failure connotation and may be used with arbitrary condition functions. On the other hand,
+[class_scope_scope_success] and [class_scope_scope_fail] typically correspond to their respective intended use cases, and the default condition
+function makes them equivalent to the scope guards defined in [@https://cplusplus.github.io/fundamentals-ts/v3.html#scope.syn
+`<experimental/scope>`].
 
 It is possible to emulate each of the scope guards described in this section by using [class_scope_scope_exit], either with a custom condition
 function object, with the condition function embedded into the action function, or by activating or deactivating the scope guard after
@@ -1278,7 +1280,7 @@ void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 {
     bool pv_inserted = false;
     // Initially active scope guard, but blocked by pv_inserted == false
-    std::experimental::scope_fail pv_rollback([pv, &pv_inserted]
+    std::experimental::scope_exit pv_rollback([pv, &pv_inserted]
     {
         if (pv_inserted)
             pv->pop_back();
@@ -1291,7 +1293,7 @@ void insert_two(std::vector< int >* pv, std::set< int >& set, int value)
 
     auto [it, inserted] = set.insert(value); // may throw
     // Initially active scope guard, which we immediately deactivate if no element was inserted
-    std::experimental::scope_fail set_rollback([&set, &it] { set.erase(it); });
+    std::experimental::scope_exit set_rollback([&set, &it] { set.erase(it); });
     if (!inserted)
         set_rollback.release();
 
@@ -1350,7 +1352,7 @@ functions `noexcept`:
 While this allows more scope guards to throw exceptions, it makes no difference in behavior when the action throws during an exception
 propagation. Whether the scope guard's destructor is marked `noexcept` or not, the program will terminate either way in this case.
 
-This Boost.Scope feature cannot be emulated with TS scope guards.
+This Boost.Scope feature cannot be emulated with TS scope guards (other than when the use case fits `scope_success`).
 
 [endsect]
 
