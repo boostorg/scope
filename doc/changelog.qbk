@@ -10,9 +10,10 @@
 
 [section:changelog Changelog]
 
-[heading 0.2]
+[heading Boost 1.85]
 
-Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/255717.php review] comments and conditions:
+The library has been accepted into Boost. Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/255717.php
+review] comments and conditions:
 
 * Renamed `scope_final` to `defer_guard` and `BOOST_SCOPE_FINAL` to `BOOST_SCOPE_DEFER`. Thanks to Peter Dimov for the
   [@https://lists.boost.org/Archives/boost/2023/12/255501.php suggestion] during the review. The name "defer" is being
@@ -35,6 +36,7 @@ Updates according to Boost [@https://lists.boost.org/Archives/boost/2024/01/2557
   the move-constructed resource, but it means the move constructor now maintains strong exception guarantee.
 * Enforced compile-time correctness checks for [link scope.unique_resource `unique_resource`] resource traits specified
   by user. Improved description of requirements for the resource traits.
+* Many documentation improvements.
 
 [heading 0.1]
 
