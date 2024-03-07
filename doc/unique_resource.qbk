@@ -137,6 +137,7 @@ contents and `false` otherwise.
 [note POSIX-like file descriptors are supported on Windows through non-standard APIs like
 [@https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/open-wopen `_open`],
 [@https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/close `_close`],
+[@https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/read `_read`],
 [@https://learn.microsoft.com/en-us/cpp/c-runtime-library/reference/write `_write`] and others. It is often possible to port a program
 performing simple IO with regular files and file descriptors to Windows by simple renaming. However, here and below we will be using
 the standard POSIX nomenclature.]
