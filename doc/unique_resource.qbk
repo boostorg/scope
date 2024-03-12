@@ -301,8 +301,10 @@ The library provides an `unallocated_resource` class template that can be used t
 when the resource satisfies the following constraints:
 
 * Resource values are allowed to be specified as [@https://en.cppreference.com/w/cpp/language/template_parameters non-type template parameters]
-  in C++. The exact set of types that meet this requirement depends on the C++ standard version being used. For example, integers, enumerations,
-  pointers and lvalue references are generally supported.
+  in C++. The exact set of types that meet this requirement depends on the C++ standard version being used. For example, integers,
+  enumerations, pointers and lvalue references are supported since C++17. C++20 adds support for class types. Note that resource value
+  initialization expression must be a constant expression. In particular, for pointers and references this means that the resource value
+  initialization expression must refer to an object or function or, in case of pointers, produce a null pointer.
 * There is one or more unallocated resource values that can be individually listed. All other resource values represent allocated resources
   that need to be freed.
 * One of these unallocated resource values is considered the default.
@@ -341,6 +343,11 @@ inconsistency between different Windows APIs.]
 With `unallocated_resource`, the above resource traits could be reduced to this:
 
     using handle_traits = boost::scope::unallocated_resource< INVALID_HANDLE_VALUE, (HANDLE)NULL >;
+
+[note Given that `INVALID_HANDLE_VALUE` is defined as `(HANDLE)-1` in Windows SDK, and `HANDLE` is actually a pointer type, in pure C++
+one should not be able to specify this value as a non-type template parameter because the pointer does not refer to an object. However, MSVC
+accepts this code as an extension. With other compilers, one would still have to implement proper resource traits similar to `handle_traits`
+in this case.]
 
 We can also use __boost_core_functor__ to wrap the [@https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle
 `CloseHandle`] Windows API function, which is used to free handles, to define the resource deleter. Then the complete definition of
