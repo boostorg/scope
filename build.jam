@@ -7,9 +7,9 @@ import project ;
 
 project /boost/scope
     : common-requirements
-        <source>/boost/assert//boost_assert
-        <source>/boost/config//boost_config
-        <source>/boost/core//boost_core
+        <library>/boost/assert//boost_assert
+        <library>/boost/config//boost_config
+        <library>/boost/core//boost_core
         <include>include
     ;
 
