@@ -12,7 +12,7 @@ Section 3.3 Scope guard support \[scopeguard\]. The implementation also provides
 
 ### More information
 
-* Read the [documentation](https://boostorg.github.io/scope/libs/scope/doc/html/index.html).
+* Read the [documentation](https://www.boost.org/libs/scope/).
 * [Report bugs](https://github.com/boostorg/scope/issues/new). Be sure to mention Boost version, platform and compiler you're using. A small compilable code sample to reproduce the problem is always good as well.
 * Submit your patches as [pull requests](https://github.com/boostorg/scope/compare) against **develop** branch. Note that by submitting patches you agree to license your modifications under the [Boost Software License, Version 1.0](https://www.boost.org/LICENSE_1_0.txt).
 
