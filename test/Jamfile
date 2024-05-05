@@ -11,6 +11,7 @@ import testing ;
 import path ;
 import regex ;
 import os ;
+import-search /boost/config/checks ;
 import config : requires ;
 
 project
