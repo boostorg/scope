@@ -5,19 +5,22 @@
 
 require-b2 5.2 ;
 
+constant boost_dependencies :
+    /boost/assert//boost_assert
+    /boost/config//boost_config
+    /boost/core//boost_core
+    /boost/type_traits//boost_type_traits ;
+
 project /boost/scope
     : common-requirements
-        <library>/boost/assert//boost_assert
-        <library>/boost/config//boost_config
-        <library>/boost/core//boost_core
-        <library>/boost/type_traits//boost_type_traits
         <include>include
     ;
 
 explicit
-    [ alias boost_scope ]
+    [ alias boost_scope : : : : <library>$(boost_dependencies) ]
     [ alias all : boost_scope test ]
     ;
 
 call-if : boost-library scope
     ;
+
