@@ -15,6 +15,7 @@ import config : requires ;
 
 project
     : requirements
+        <library>/boost/scope//boost_scope
         <include>common
 
         <c++-template-depth>1024
