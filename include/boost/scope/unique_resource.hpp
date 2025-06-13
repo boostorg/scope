@@ -1553,6 +1553,7 @@ public:
      *
      * **Effects:** As if `left.swap(right)`.
      */
+#if !defined(BOOST_MSVC) || (BOOST_MSVC < 1910 || BOOST_MSVC >= 1920)
 #if !defined(BOOST_SCOPE_DOXYGEN)
     template< bool Requires = detail::is_swappable< data >::value >
     friend typename std::enable_if< Requires >::type
@@ -1564,6 +1565,14 @@ public:
     {
         left.swap(right);
     }
+#else // !defined(BOOST_MSVC) || (BOOST_MSVC < 1910 || BOOST_MSVC >= 1920)
+    // MSVC 14.1 has broken name lookup in the context of the noexcept specifier of a friend function
+    template< bool Requires = detail::is_swappable< data >::value, bool Noexcept = detail::is_nothrow_swappable< data >::value >
+    friend typename std::enable_if< Requires >::type swap(unique_resource& left, unique_resource& right) noexcept(Noexcept)
+    {
+        left.swap(right);
+    }
+#endif // !defined(BOOST_MSVC) || (BOOST_MSVC < 1910 || BOOST_MSVC >= 1920)
 
 //! \cond
 private:
