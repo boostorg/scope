@@ -1566,7 +1566,8 @@ public:
         left.swap(right);
     }
 #else // !defined(BOOST_MSVC) || (BOOST_MSVC < 1910 || BOOST_MSVC >= 1920)
-    // MSVC 14.1 has broken name lookup in the context of the noexcept specifier of a friend function
+    // MSVC 14.1 has broken name lookup in the context of the noexcept specifier of a friend function.
+    // https://developercommunity.visualstudio.com/t/Incorrect-name-lookup-in-the-noexcept-sp/10922514
     template< bool Requires = detail::is_swappable< data >::value, bool Noexcept = detail::is_nothrow_swappable< data >::value >
     friend typename std::enable_if< Requires >::type swap(unique_resource& left, unique_resource& right) noexcept(Noexcept)
     {
