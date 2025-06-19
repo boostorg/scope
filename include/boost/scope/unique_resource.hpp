@@ -15,6 +15,7 @@
 #define BOOST_SCOPE_UNIQUE_RESOURCE_HPP_INCLUDED_
 
 #include <new> // for placement new
+#include <utility> // std::declval
 #include <type_traits>
 #include <boost/core/addressof.hpp>
 #include <boost/core/invoke_swap.hpp>
