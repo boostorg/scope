@@ -19,7 +19,6 @@
 #include <ostream>
 #include <utility>
 #include <stdexcept>
-#include <type_traits>
 
 template< typename Resource >
 struct empty_resource_deleter
