@@ -523,25 +523,22 @@ jobs:
             git submodule update --init tools/boostdep
             DEPINST_ARGS+=("$LIBRARY")
             python tools/boostdep/depinst/depinst.py "${DEPINST_ARGS[@]}"
-            if [ -z "${{matrix.cmake_tests}}" ]
-            then
-                ./bootstrap.sh
-                ./b2 headers
-                if [ -n "${{matrix.compiler}}" -o -n "$GCC_TOOLCHAIN_ROOT" ]
-                then
-                    echo -n "using ${{matrix.toolset}} : : ${{matrix.compiler}}" > ~/user-config.jam
-                    if [ -n "$GCC_TOOLCHAIN_ROOT" ]
-                    then
-                        echo -n " : <compileflags>\"--gcc-toolchain=$GCC_TOOLCHAIN_ROOT\" <linkflags>\"--gcc-toolchain=$GCC_TOOLCHAIN_ROOT\"" >> ~/user-config.jam
-                    fi
-                    echo " ;" >> ~/user-config.jam
-                fi
-            fi
 
       - name: Run tests
         if: matrix.cmake_tests == ''
         run: |
             cd boost-root
+            ./bootstrap.sh
+            ./b2 headers
+            if [ -n "${{matrix.compiler}}" -o -n "$GCC_TOOLCHAIN_ROOT" ]
+            then
+                echo -n "using ${{matrix.toolset}} : : ${{matrix.compiler}}" > ~/user-config.jam
+                if [ -n "$GCC_TOOLCHAIN_ROOT" ]
+                then
+                    echo -n " : <compileflags>\"--gcc-toolchain=$GCC_TOOLCHAIN_ROOT\" <linkflags>\"--gcc-toolchain=$GCC_TOOLCHAIN_ROOT\"" >> ~/user-config.jam
+                fi
+                echo " ;" >> ~/user-config.jam
+            fi
             if [ -z "${{matrix.extra_tests}}" ]
             then
                 export BOOST_SCOPE_TEST_WITHOUT_SELF_CONTAINED_HEADER_TESTS=1
@@ -654,15 +651,13 @@ jobs:
             rmdir /s /q "..\snapshot"
             git submodule update --init tools/boostdep
             python tools/boostdep/depinst/depinst.py --git_args "--jobs %GIT_FETCH_JOBS%" %LIBRARY%
-            if "${{matrix.cmake_tests}}" == "" (
-                cmd /c bootstrap
-                b2 -d0 headers
-            )
 
       - name: Run tests
         if: matrix.cmake_tests == ''
         run: |
             cd boost-root
+            cmd /c bootstrap
+            b2 -d0 headers
             if "${{matrix.extra_tests}}" == "" set BOOST_SCOPE_TEST_WITHOUT_SELF_CONTAINED_HEADER_TESTS=1
             if not "${{matrix.cxxstd}}" == "" set CXXSTD=cxxstd=${{matrix.cxxstd}}
             if not "${{matrix.addrmd}}" == "" set ADDRMD=address-model=${{matrix.addrmd}}
