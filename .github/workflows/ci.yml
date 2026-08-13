@@ -84,12 +84,14 @@ jobs:
               - g++-10
           - toolset: gcc-11
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu"
-            os: ubuntu-22.04
+            os: ubuntu-latest
+            container: ubuntu:22.04
             install:
               - g++-11
           - toolset: gcc-12
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,23-gnu"
-            os: ubuntu-22.04
+            os: ubuntu-latest
+            container: ubuntu:22.04
             install:
               - g++-12
           - toolset: gcc-13
@@ -212,7 +214,8 @@ jobs:
           - toolset: clang
             compiler: clang++-11
             cxxstd: "11,14,17,20"
-            os: ubuntu-22.04
+            os: ubuntu-latest
+            container: ubuntu:22.04
             install:
               - clang-11
               - g++-11
@@ -221,7 +224,8 @@ jobs:
           - toolset: clang
             compiler: clang++-12
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,2b-gnu"
-            os: ubuntu-22.04
+            os: ubuntu-latest
+            container: ubuntu:22.04
             install:
               - clang-12
               - g++-11
@@ -229,7 +233,8 @@ jobs:
           - toolset: clang
             compiler: clang++-13
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,2b-gnu"
-            os: ubuntu-22.04
+            os: ubuntu-latest
+            container: ubuntu:22.04
             install:
               - clang-13
               - g++-11
@@ -237,7 +242,8 @@ jobs:
           - toolset: clang
             compiler: clang++-14
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,2b-gnu"
-            os: ubuntu-22.04
+            os: ubuntu-latest
+            container: ubuntu:22.04
             install:
               - clang-14
               - g++-11
@@ -245,7 +251,8 @@ jobs:
           - toolset: clang
             compiler: clang++-15
             cxxstd: "11-gnu,14-gnu,17-gnu,20-gnu,2b-gnu"
-            os: ubuntu-22.04
+            os: ubuntu-latest
+            container: ubuntu:22.04
             install:
               - clang-15
               - g++-11
@@ -333,7 +340,7 @@ jobs:
 
           - name: CMake tests
             cmake_tests: 1
-            os: ubuntu-22.04
+            os: ubuntu-24.04
 
     timeout-minutes: 15
     runs-on: ${{matrix.os}}
