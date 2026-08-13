@@ -3,7 +3,7 @@
  * (See accompanying file LICENSE_1_0.txt or copy at
  * https://www.boost.org/LICENSE_1_0.txt)
  *
- * Copyright (c) 2022-2024 Andrey Semashev
+ * Copyright (c) 2022-2026 Andrey Semashev
  */
 /*!
  * \file scope/defer.hpp
@@ -148,11 +148,18 @@ defer_guard(Func) -> defer_guard< Func >;
 } // namespace scope
 
 //! \cond
+// Clang 18 and later eagerly defines __cpp_placeholder_variables but then emits warnings unless C++26 is enabled:
+// https://github.com/llvm/llvm-project/issues/216035
+#if defined(__cpp_placeholder_variables) && (__cpp_placeholder_variables >= 202306l) && (!defined(BOOST_CLANG) || (BOOST_CXX_VERSION > 202302l))
+#define BOOST_SCOPE_DETAIL_PLACEHOLDER_VAR_NAME _
+#else // defined(__cpp_placeholder_variables)...
 #if defined(BOOST_MSVC)
 #define BOOST_SCOPE_DETAIL_UNIQUE_VAR_TAG __COUNTER__
 #else
 #define BOOST_SCOPE_DETAIL_UNIQUE_VAR_TAG __LINE__
 #endif
+#define BOOST_SCOPE_DETAIL_PLACEHOLDER_VAR_NAME BOOST_JOIN(_boost_scope_defer_guard_, BOOST_SCOPE_DETAIL_UNIQUE_VAR_TAG)
+#endif // defined(__cpp_placeholder_variables)...
 //! \endcond
 
 /*!
@@ -170,8 +177,7 @@ defer_guard(Func) -> defer_guard< Func >;
  *
  * \note Using this macro requires C++17.
  */
-#define BOOST_SCOPE_DEFER \
-    boost::scope::defer_guard BOOST_JOIN(_boost_defer_guard_, BOOST_SCOPE_DETAIL_UNIQUE_VAR_TAG) =
+#define BOOST_SCOPE_DEFER boost::scope::defer_guard BOOST_SCOPE_DETAIL_PLACEHOLDER_VAR_NAME =
 
 } // namespace boost
 
