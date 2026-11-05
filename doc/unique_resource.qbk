@@ -466,8 +466,8 @@ call the deleter on destruction. `default_resource` also works with resource tra
 
     boost::scope::unique_resource< int, int (*)(int), boost::scope::fd_resource_traits > fd(boost::scope::default_resource, &close);
 
-In the above case, the `fd` object will use the default value specified by the resource traits (i.e. -1, in case of fd_resource_traits) to initialize
-its stored resource object. Again, the `fd` object is in an unallocated state after construction.
+In the above case, the `fd` object will use the default value specified by the resource traits (i.e. -1, in case of `fd_resource_traits`) to
+initialize its stored resource object. Again, the `fd` object is in an unallocated state after construction.
 
 Library Fundamentals TS specifies that `unique_resource` move constructor must deallocate the resource if the resource is nothrow move-constructible
 and the deleter is not and the deleter's copy constructor throws and exception. This is a case when `unique_resource` is half-constructed: the
