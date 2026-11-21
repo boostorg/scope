@@ -1,5 +1,5 @@
 [/
- / Copyright 2023-2024 Andrey Semashev
+ / Copyright 2023-2026 Andrey Semashev
  /
  / Distributed under the Boost Software License, Version 1.0.
  / (See accompanying file LICENSE_1_0.txt or copy at
@@ -9,6 +9,10 @@
  /]
 
 [section:changelog Changelog]
+
+[heading Boost 1.93]
+
+* Use C++26 placeholder variables in `BOOST_SCOPE_DEFER` implementation, when possible.
 
 [heading Boost 1.85]
 
